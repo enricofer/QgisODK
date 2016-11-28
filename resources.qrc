@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/plugins/QgisODK" >
+        <file>icon.png</file>
+    </qresource>
+</RCC>

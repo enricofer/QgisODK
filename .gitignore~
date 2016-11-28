@@ -1,0 +1,12 @@
+*.pyc
+Makefile
+*.log
+help/
+.idea/
+sample/
+i18n/
+.DS_Store
+plugin_upload.py
+compile.bat
+compileXP.bat
+validSql.log
