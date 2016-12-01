@@ -22,11 +22,13 @@
 """
 
 from PyQt4.QtCore import Qt, QVariant
-from PyQt4.QtGui import QTreeWidget, QTreeWidgetItem, QLineEdit, QComboBox, QCheckBox, QAbstractItemView
+from PyQt4.QtGui import QTableWidget, QTableWidgetItem, QLineEdit, QComboBox, QCheckBox, QAbstractItemView
 from PyQt4.QtGui import QTreeView, QStandardItem, QStandardItemModel, QItemSelectionModel, QItemDelegate
 from PyQt4.QtGui import QPen, QBrush, QColor
 
 from qgis.core import QGis
+
+from QgisODK_mod_choices import QgisODKChoices
 
 import json
 import unicodedata
@@ -42,6 +44,20 @@ appearanceDef = {
     'geotrace': ['default','maps','placement-map'],
     'geoshape': ['default','maps','placement-map'],
 }
+
+def QVariantToODKtype(q_type):
+    if  q_type == QVariant.String:
+        return 'text'
+    elif q_type == QVariant.Date:
+        return 'datetime'
+    elif QVariant.nameToType(q_type) in [2,3,4,32,33,35,36]:
+        return 'integer'
+    elif QVariant.nameToType(q_type) in [6,38]:
+        return 'decimal'
+    else:
+        raise AttributeError("Can't cast QVariant to ODKType: " + q_type)
+    
+
 
 def slugify (s):
     if type(s) is unicode:
@@ -119,7 +135,7 @@ class ODK_fields(QTreeView):
         self.setModel(model)
         self.hideColumn(6)
         self.hideColumn(7)
-        self.hideColumn(8)
+        #self.hideColumn(8)
 
         metadata_group = self.addGroup(metadata = True)
         for m in metadata:
@@ -333,25 +349,33 @@ class ODKDelegate(QItemDelegate):
         row = index.row()
         parentNode = index.model().data(index.parent(), Qt.EditRole)
         
-        print column,row, parentNode
+        q_type = QVariant.nameToType(index.model().data(index.sibling(0,6), Qt.DisplayRole))
+        
         if column == 2 and parentNode: # combobox for odk types
             editorQWidget = QComboBox(parent)
             #QVariantType = indexQModelIndex.model().item(row,6).data()
             if content in ['text','note','image','barcode','audio','video']:
-                combobox_items = ['text','note','image','barcode','audio','video']
+                combobox_items = ['text','note','image','barcode','audio','video','select one']
             elif content in ['date', 'datetime']:
                 combobox_items = ['date', 'time', 'datetime']
             elif content in ['geopoint','geoshape','geotrace']:
                 combobox_items = ['geopoint','geoshape','geotrace']
+            elif content in ['select one']:
+                combobox_items = ['select one', QVariantToODKtype(q_type)]
             else:
-                combobox_items = [content]
+                combobox_items = [content,'select one']
             editorQWidget.addItems(combobox_items)
             editorQWidget.setCurrentIndex(editorQWidget.findText(content))
             return editorQWidget
+        elif column == 8 and parentNode:
+            content = QgisODKChoices.getChoices(content, q_type, title = parentNode)
+            print "content",content
+            index.model().setData(index,content, Qt.DisplayRole)
+            QItemDelegate.createEditor(self, parent, option, index)
         elif column == 9 and parentNode: # combobox for appearance
             contentType = index.model().data(index.sibling(0,2), Qt.DisplayRole)
             print "contentType", contentType
-            if contentType == '':
+            if contentType == '' or not contentType in appearanceDef.keys():
                 return
             editorQWidget = QComboBox(parent)
             editorQWidget.addItems(appearanceDef[contentType])
@@ -384,7 +408,6 @@ class fieldItem(QStandardItem):
         else:
             fieldDef['fieldAppearance'] = 'default'
         row = []
-        print fieldDef
         for fdef in self.defOrder:
             if fdef == 'fieldName':
                 sub_item = QStandardItem(None)

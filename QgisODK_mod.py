@@ -22,16 +22,18 @@
 """
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, QFileInfo
 from PyQt4.QtGui import QMenu, QAction, QIcon, QFileDialog
-from PyQt4.QtXml import QDomDocument
+from PyQt4.QtXml import QDomDocument, QDomElement
 from qgis.core import QgsMapLayer, QgsMapLayerRegistry, QgsProject
+from qgis.gui import QgsMessageBar
 # Initialize Qt resources from file resources.py
 import resources
 import json
 import xlsxwriter
 import requests
 import io
+import time
 # Import the code for the dialog
-from QgisODK_mod_dialog import QgisODKDialog
+from QgisODK_mod_dialog import QgisODKDialog, QgisODKServices, QgisODKImportCollectedData
 import os.path
 from pyxform.builder import create_survey_element_from_dict
 from json_form_schema import json_test, dict_test
@@ -68,6 +70,8 @@ class QgisODK:
 
         # Create the dialog (after translation) and keep reference
         self.dlg = QgisODKDialog()
+        self.settingsDlg = QgisODKServices()
+        self.importCollectedData = QgisODKImportCollectedData(self)
 
         # Declare instance attributes
         self.actions = []
@@ -175,20 +179,22 @@ class QgisODK:
             callback=self.run,
             parent=self.iface.mainWindow())
         self.QODKMenu = QMenu('QgisOKD')
-        self.QODKMenuAction = QAction(QIcon(os.path.join(self.plugin_dir,"icon.svg")), u"QgisODK", self.iface.legendInterface() )
-        self.QODKMenuAction.setMenu(self.QODKMenu)
-        self.QODKOutAction = QAction(QIcon(os.path.join(self.plugin_dir,"icon.svg")), u"ODK out", self.QODKMenu )
-        self.QODKInAction = QAction(QIcon(os.path.join(self.plugin_dir,"icon.svg")), u"ODK in", self.QODKMenu )
-        self.QODKMenu.addAction(self.QODKOutAction)
-        self.QODKMenu.addAction(self.QODKInAction)
-        self.iface.legendInterface().addLegendLayerAction(self.QODKMenuAction,"","01", QgsMapLayer.VectorLayer,True)
+        #self.QODKMenuAction = QAction(QIcon(os.path.join(self.plugin_dir,"icon.svg")), u"QgisODK", self.iface.legendInterface() )
+        #self.QODKMenuAction.setMenu(self.QODKMenu)
+        self.QODKOutAction = QAction(QIcon(os.path.join(self.plugin_dir,"icon.svg")), u"export ODK form", self.QODKMenu )
+        #self.QODKInAction = QAction(QIcon(os.path.join(self.plugin_dir,"icon.svg")), u"ODK in", self.QODKMenu )
+        #self.QODKMenu.addAction(self.QODKOutAction)
+        #self.QODKMenu.addAction(self.QODKInAction)
+        self.iface.legendInterface().addLegendLayerAction(self.QODKOutAction,"","01", QgsMapLayer.VectorLayer,True)
         self.QODKOutAction.triggered.connect(self.contextOdkout)
-        self.QODKInAction.triggered.connect(self.ODKin)
+        #self.QODKInAction.triggered.connect(self.ODKin)
         self.dlg.addGroupButton.clicked.connect(self.addODKGroup)
         self.dlg.exportXFormButton.clicked.connect(self.exportXForm)
         self.dlg.exportXlsFormButton.clicked.connect(self.exportXlsForm)
         self.dlg.cancelButton.clicked.connect(self.closeDlg)
         self.dlg.exportToWebServiceButton.clicked.connect(self.exportToWebService)
+        self.dlg.settingsToolButton.clicked.connect(self.openSettings)
+        self.dlg.importCollectedDataButton.clicked.connect(self.importCollectedDataAction)
 
 
     def unload(self):
@@ -200,15 +206,22 @@ class QgisODK:
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
         del self.toolbar
-        self.iface.legendInterface().removeLegendLayerAction(self.QODKMenuAction)
+        self.iface.legendInterface().removeLegendLayerAction(self.QODKOutAction)
 
+    def openSettings(self):
+        self.settingsDlg.show()
+        self.settingsDlg.raise_()
 
     def run(self):
         """Run method that performs all the real work"""
         # show the dialog
         self.populateVectorLayerCombo()
+        self.ODKout(None)
         self.dlg.show()
         self.dlg.raise_()
+
+    def importCollectedDataAction(self):
+        self.importCollectedData.show()
 
     def contextOdkout(self):
         self.populateVectorLayerCombo()
@@ -221,7 +234,10 @@ class QgisODK:
 
     def ODKout(self, currentLayer):
         if not currentLayer:
-            currentLayer = self.iface.legendInterface().currentLayer()
+            if self.iface.legendInterface().currentLayer():
+                currentLayer = self.iface.legendInterface().currentLayer()
+            else:
+                return
         if currentLayer.type() != QgsMapLayer.VectorLayer:
             return
         currentFormConfig = currentLayer.editFormConfig()
@@ -241,10 +257,7 @@ class QgisODK:
             fieldDef['fieldHint'] = ''
             fieldDef['fieldType'] = currentLayer.pendingFields()[i].type()
             fieldDef['fieldEnabled'] = True
-            if i == 4 or i ==2:
-                fieldDef['fieldRequired'] = True
-            else:
-                fieldDef['fieldRequired'] = None
+            fieldDef['fieldRequired'] = None
             fieldDef['fieldDefault'] = ''
             fieldDef['fieldWidget'] = currentFormConfig.widgetType(i)
             if fieldDef['fieldWidget'] == 'Hidden':
@@ -257,7 +270,7 @@ class QgisODK:
                 else:
                     config = currentFormConfig.widgetConfig(i)
                 fieldDef['fieldChoices'] = config
-                print currentFormConfig.widgetConfig(i)
+                #print currentFormConfig.widgetConfig(i)
             else:
                 fieldDef['fieldChoices'] = {}
             fieldsModel.append(fieldDef)
@@ -304,24 +317,23 @@ class QgisODK:
     def exportToWebService(self):
         tmpXlsFileName = os.path.join(self.plugin_dir,"tmpodk.xls")
         xForm_id = self.exportXlsForm(fileName=tmpXlsFileName)
-        response = self.sendForm(xForm_id,tmpXlsFileName)
+        response = self.settingsDlg.sendForm(xForm_id,tmpXlsFileName)
+        print "RESPONSE:",response
         os.remove(tmpXlsFileName)
-        print response.text
-        print response.headers
-        print response.status_code
+        if response.status_code != requests.codes.ok:
+            #msg = self.iface.messageBar().createMessage( u"QgisODK plugin error saving form %s, %s." % (response.status_code,response.reason))
+            #self.iface.messageBar().pushWidget(msg,QgsMessageBar.WARNING, 6)
+            self.iface.messageBar().pushMessage("QgisODK plugin", "error saving form %s, %s." % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+        else:
+            #msg = self.iface.messageBar().createMessage( u"QgisODK plugin: form successfully exported")
+            #self.iface.messageBar().pushWidget(msg,QgsMessageBar.INFO, 6)
+            self.iface.messageBar().pushMessage("QgisODK plugin", "form successfully exported", level=QgsMessageBar.INFO, duration=6)
 
     
     def closeDlg(self):
         self.dlg.close()
 
-    def ODKin(self):
-        print (dict_test())
-        survey = create_survey_element_from_dict(dict_test())
-        warnings = []
-        #survey.print_xform_to_file(os.path.join(self.plugin_dir,"xform.xml"), validate=None, warnings=warnings)
-        xform = survey.to_xml(validate=None, warnings=warnings)
-        
-        print (xform)
+    
     
     def populateVectorLayerCombo(self):
         try:
@@ -344,33 +356,39 @@ class QgisODK:
             layer = QgsMapLayerRegistry.instance().mapLayer(self.dlg.layersComboBox.itemData(idx))
             self.ODKout(layer)
 
-    def sendForm(self, xForm_id, xForm):
-        print "ID", xForm_id
-        self.proxyDict = {
-                      "http"  : "http://ferregutie:0an1malO@172.20.0.252:3128", 
-                      "https" : "http://ferregutie:0an1malO@172.20.0.252:3128"
-                    }
-        url = 'https://api.ona.io/api/v1/projects/26021/forms'#&client_id=ATkQq9VoY5UeJqBannxVlYo413NSft7tAgoDyXlr'
-        #step1 - verify if form exists:
-        url = 'https://api.ona.io/api/v1/projects/26021/forms'
-        response = requests.get(url, auth=requests.auth.HTTPBasicAuth('enricofer', 'autautaut'))
-        forms = response.json()
-        form_key = None
-        method = 'POST'
-        for form in forms:
-            print "FORM:",form['sms_id_string']
-            if form['sms_id_string'] == xForm_id:
-                form_key = form['formid']
-                url = 'https://api.ona.io/api/v1/forms/' + str(form_key)
-                method = 'PATCH'
-                break
+    #method to get xml definition of layer state
+    def getDomDef(self,layer):
+        XMLDocument = QDomDocument("undo-layer")
+        XMLMapLayers = QDomElement()
+        XMLMapLayers = XMLDocument.createElement("maplayers")
+        XMLMapLayer = QDomElement()
+        XMLMapLayer = XMLDocument.createElement("maplayer")
+        layer.writeLayerXML(XMLMapLayer,XMLDocument)
+        XMLMapLayers.appendChild( XMLMapLayer )
+        XMLDocument.appendChild( XMLMapLayers )
+        return XMLMapLayer
 
-        print url
-        files = {'xls_file': (xForm, open(xForm, 'rb'), 'application/vnd.ms-excel', {'Expires': '0'})}
-        response = requests.request(method, url, files=files, auth=requests.auth.HTTPBasicAuth('enricofer', 'autautaut'))#, proxies = proxyDict,headers={'Content-Type': 'application/octet-stream'})
-        #response = requests.get(url, proxies = proxyDict)
-        return response
-
-    def getSheetAsCSV(self,sheetId):
-        pass
+    def ODKin(self):#,sheetId):
+        geojsonDict,response = self.settingsDlg.getLayer(self.iface.legendInterface().currentLayer().name())
+        if geojsonDict and response.status_code == requests.codes.ok:
+            workDir = QgsProject.instance().readPath("./")
+            geoJsonFileName = self.iface.legendInterface().currentLayer().name()+'_odk-'+time.strftime("%d-%m-%Y")+'.geojson'
+            with open(os.path.join(workDir,geoJsonFileName), "w") as geojson_file:
+                geojson_file.write(json.dumps(geojsonDict))
+            layer = self.iface.addVectorLayer(os.path.join(workDir,geoJsonFileName), geoJsonFileName[:-8], "ogr")
+            QgsMapLayerRegistry.instance().addMapLayer(layer)
+            print 'CONTENT',response.status_code,response.reason,response.text
+            currentLayerState = self.getDomDef(self.iface.legendInterface().currentLayer())
+                
+            currentFormConfig = currentLayer.editFormConfig() #recover
+            fieldsModel = {}
+            for i in range(0,len(currentLayer.pendingFields())):
+                fieldsModel[currentLayer.pendingFields()[i].name()] = currentFormConfig.widgetType(i)
+                
+            layer.readLayerXML(currentLayerState)
+        else:
+            print response.text
+            #msg = self.iface.messageBar().createMessage( u"QgisODK plugin error loading csv table %s, %s." % (response.status_code,response.reason))
+            #self.iface.messageBar().pushWidget(msg,QgsMessageBar.WARNING, 6)
+            self.iface.messageBar().pushMessage("QgisODK plugin", "error loading csv table %s, %s." % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
 

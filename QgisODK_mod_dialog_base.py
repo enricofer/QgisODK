@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file '/home/enrico/Dropbox/dev/qgisODK/QgisODK_mod_dialog_base.ui'
+# Form implementation generated from reading ui file 'Z:\dev\qgisODK\QgisODK_mod_dialog_base.ui'
 #
-# Created: Mon Nov 28 16:58:46 2016
-#      by: PyQt4 UI code generator 4.10.4
+# Created: Thu Dec 01 16:01:33 2016
+#      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -27,7 +27,7 @@ except AttributeError:
 class Ui_QgisODKDialogBase(object):
     def setupUi(self, QgisODKDialogBase):
         QgisODKDialogBase.setObjectName(_fromUtf8("QgisODKDialogBase"))
-        QgisODKDialogBase.resize(754, 368)
+        QgisODKDialogBase.resize(834, 368)
         self.verticalLayout = QtGui.QVBoxLayout(QgisODKDialogBase)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.horizontalLayout_2 = QtGui.QHBoxLayout()
@@ -42,6 +42,11 @@ class Ui_QgisODKDialogBase(object):
         spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.horizontalLayout_2.addItem(spacerItem)
         self.settingsToolButton = QtGui.QToolButton(QgisODKDialogBase)
+        self.settingsToolButton.setMinimumSize(QtCore.QSize(24, 24))
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap(_fromUtf8("settings.svg")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.settingsToolButton.setIcon(icon)
+        self.settingsToolButton.setIconSize(QtCore.QSize(16, 16))
         self.settingsToolButton.setObjectName(_fromUtf8("settingsToolButton"))
         self.horizontalLayout_2.addWidget(self.settingsToolButton)
         self.verticalLayout.addLayout(self.horizontalLayout_2)
@@ -64,6 +69,9 @@ class Ui_QgisODKDialogBase(object):
         self.exportToWebServiceButton = QtGui.QPushButton(QgisODKDialogBase)
         self.exportToWebServiceButton.setObjectName(_fromUtf8("exportToWebServiceButton"))
         self.horizontalLayout.addWidget(self.exportToWebServiceButton)
+        self.importCollectedDataButton = QtGui.QPushButton(QgisODKDialogBase)
+        self.importCollectedDataButton.setObjectName(_fromUtf8("importCollectedDataButton"))
+        self.horizontalLayout.addWidget(self.importCollectedDataButton)
         self.cancelButton = QtGui.QPushButton(QgisODKDialogBase)
         self.cancelButton.setObjectName(_fromUtf8("cancelButton"))
         self.horizontalLayout.addWidget(self.cancelButton)
@@ -80,5 +88,6 @@ class Ui_QgisODKDialogBase(object):
         self.exportXlsFormButton.setText(_translate("QgisODKDialogBase", "export to XlsForm", None))
         self.exportXFormButton.setText(_translate("QgisODKDialogBase", "export to XForm", None))
         self.exportToWebServiceButton.setText(_translate("QgisODKDialogBase", "export to Web Service", None))
+        self.importCollectedDataButton.setText(_translate("QgisODKDialogBase", "import collected data", None))
         self.cancelButton.setText(_translate("QgisODKDialogBase", "Cancel", None))
 
