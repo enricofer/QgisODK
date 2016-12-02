@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'Z:\dev\qgisODK\QgisODK_mod_dialog_base.ui'
 #
-# Created: Thu Dec 01 16:01:33 2016
+# Created: Fri Dec 02 10:42:07 2016
 #      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -41,11 +41,25 @@ class Ui_QgisODKDialogBase(object):
         self.horizontalLayout_2.addWidget(self.label)
         spacerItem = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.horizontalLayout_2.addItem(spacerItem)
+        self.ODKsaveButton = QtGui.QToolButton(QgisODKDialogBase)
+        self.ODKsaveButton.setMinimumSize(QtCore.QSize(24, 24))
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap(_fromUtf8("save.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.ODKsaveButton.setIcon(icon)
+        self.ODKsaveButton.setObjectName(_fromUtf8("ODKsaveButton"))
+        self.horizontalLayout_2.addWidget(self.ODKsaveButton)
+        self.ODKloadButton = QtGui.QToolButton(QgisODKDialogBase)
+        self.ODKloadButton.setMinimumSize(QtCore.QSize(24, 24))
+        icon1 = QtGui.QIcon()
+        icon1.addPixmap(QtGui.QPixmap(_fromUtf8("open.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.ODKloadButton.setIcon(icon1)
+        self.ODKloadButton.setObjectName(_fromUtf8("ODKloadButton"))
+        self.horizontalLayout_2.addWidget(self.ODKloadButton)
         self.settingsToolButton = QtGui.QToolButton(QgisODKDialogBase)
         self.settingsToolButton.setMinimumSize(QtCore.QSize(24, 24))
-        icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(_fromUtf8("settings.svg")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.settingsToolButton.setIcon(icon)
+        icon2 = QtGui.QIcon()
+        icon2.addPixmap(QtGui.QPixmap(_fromUtf8("settings.svg")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.settingsToolButton.setIcon(icon2)
         self.settingsToolButton.setIconSize(QtCore.QSize(16, 16))
         self.settingsToolButton.setObjectName(_fromUtf8("settingsToolButton"))
         self.horizontalLayout_2.addWidget(self.settingsToolButton)
@@ -83,6 +97,11 @@ class Ui_QgisODKDialogBase(object):
     def retranslateUi(self, QgisODKDialogBase):
         QgisODKDialogBase.setWindowTitle(_translate("QgisODKDialogBase", "QgisODK", None))
         self.label.setText(_translate("QgisODKDialogBase", "select Layer to Export to Open Data Kit format", None))
+        self.ODKsaveButton.setToolTip(_translate("QgisODKDialogBase", "save Open Data Kit project", None))
+        self.ODKsaveButton.setText(_translate("QgisODKDialogBase", "S", None))
+        self.ODKloadButton.setToolTip(_translate("QgisODKDialogBase", "load Open Data Kit Project", None))
+        self.ODKloadButton.setText(_translate("QgisODKDialogBase", "L", None))
+        self.settingsToolButton.setToolTip(_translate("QgisODKDialogBase", "Open Data Kit plugin general settings", None))
         self.settingsToolButton.setText(_translate("QgisODKDialogBase", "...", None))
         self.addGroupButton.setText(_translate("QgisODKDialogBase", "Add Group", None))
         self.exportXlsFormButton.setText(_translate("QgisODKDialogBase", "export to XlsForm", None))

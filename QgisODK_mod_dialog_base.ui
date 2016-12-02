@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>834</width>
+    <width>866</width>
     <height>368</height>
    </rect>
   </property>
@@ -47,12 +47,55 @@
       </spacer>
      </item>
      <item>
+      <widget class="QToolButton" name="ODKsaveButton">
+       <property name="minimumSize">
+        <size>
+         <width>24</width>
+         <height>24</height>
+        </size>
+       </property>
+       <property name="toolTip">
+        <string>save Open Data Kit project</string>
+       </property>
+       <property name="text">
+        <string>S</string>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>save.png</normaloff>save.png</iconset>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QToolButton" name="ODKloadButton">
+       <property name="minimumSize">
+        <size>
+         <width>24</width>
+         <height>24</height>
+        </size>
+       </property>
+       <property name="toolTip">
+        <string>load Open Data Kit Project</string>
+       </property>
+       <property name="text">
+        <string>L</string>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>open.png</normaloff>open.png</iconset>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QToolButton" name="settingsToolButton">
        <property name="minimumSize">
         <size>
          <width>24</width>
          <height>24</height>
         </size>
+       </property>
+       <property name="toolTip">
+        <string>Open Data Kit plugin general settings</string>
        </property>
        <property name="text">
         <string>...</string>

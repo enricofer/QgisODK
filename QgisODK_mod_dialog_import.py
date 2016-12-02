@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'Z:\dev\qgisODK\QgisODK_mod_dialog_import.ui'
 #
-# Created: Thu Dec 01 13:18:41 2016
+# Created: Fri Dec 02 10:30:50 2016
 #      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!

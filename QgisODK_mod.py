@@ -195,6 +195,8 @@ class QgisODK:
         self.dlg.exportToWebServiceButton.clicked.connect(self.exportToWebService)
         self.dlg.settingsToolButton.clicked.connect(self.openSettings)
         self.dlg.importCollectedDataButton.clicked.connect(self.importCollectedDataAction)
+        self.dlg.ODKsaveButton.clicked.connect(self.ODKSaveLayerStateAction)
+        self.dlg.ODKloadButton.clicked.connect(self.ODKLoadLayerStateAction)
 
 
     def unload(self):
@@ -211,6 +213,27 @@ class QgisODK:
     def openSettings(self):
         self.settingsDlg.show()
         self.settingsDlg.raise_()
+
+    def ODKSaveLayerStateAction(self):
+        fieldsState = self.dlg.treeView.backup()
+        workDir = QgsProject.instance().readPath("./")
+        fileName = QFileDialog().getSaveFileName(None,"Save QgisODK project", workDir, "*.json");
+        if fileName:
+            if QFileInfo(fileName).suffix() != "json":
+                fileName += ".json"
+            with open(fileName, "w") as json_file:
+                json.dump(fieldsState, json_file)
+
+    def ODKLoadLayerStateAction(self):
+        workDir = QgsProject.instance().readPath("./")
+        fileName = QFileDialog().getOpenFileName(None,"Load QgisODK project", workDir, "*.json");
+        if fileName:
+            with open(fileName, "r") as json_file:
+                fieldsState = json.load(json_file)
+            ODKProjectName = QFileInfo(fileName).baseName()
+            self.dlg.treeView.recover(fieldsState, ODKProjectName)
+            self.dlg.setWindowTitle("QgisODK - " + ODKProjectName)
+            self.dlg.layersComboBox.setCurrentIndex(0)
 
     def run(self):
         """Run method that performs all the real work"""
@@ -236,6 +259,7 @@ class QgisODK:
         if not currentLayer:
             if self.iface.legendInterface().currentLayer():
                 currentLayer = self.iface.legendInterface().currentLayer()
+                self.dlg.setWindowTitle("QgisODK - " + currentLayer.name())
             else:
                 return
         if currentLayer.type() != QgsMapLayer.VectorLayer:

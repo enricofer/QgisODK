@@ -36,7 +36,7 @@ import re
 
 appearanceDef = {
     'group': ['field-list','table-list'],
-    'select one': ['field-list','table-list','minimal','label','list-nolabel','autocomplete','autocomplete_chars','horizontal','compact-2','quick'],
+    'select one': ['minimal','field-list','table-list','label','list-nolabel','autocomplete','autocomplete_chars','horizontal','compact-2','quick'],
     'select multiple': ['field-list','table-list','minimal','label','list-nolabel','autocomplete','autocomplete_chars','horizontal','compact-2','quick'],
     'date': ['default','no-calendar','month-year','year'],
     'image': ['default','annotate','draw','signature'],
@@ -84,8 +84,18 @@ class ODK_fields(QTreeView):
         self.setIndentation(15)
         self.setRootIsDecorated(True)
 
+    def modelDefaults(self):
+        model = QStandardItemModel()
+        model.setHorizontalHeaderLabels(['enabled', 'label', 'ODK type', 'hint', 'required', 'default', 'QVar_type', 'widget', 'choices','appearance'])
+        self.setModel(model)
+        self.hideColumn(6)
+        self.hideColumn(7)
+        return model
 
     def setFieldModel(self,layer,fieldsModel):
+        
+        model = self.modelDefaults()
+    
         self.layerName = layer.name()
         if layer.geometryType() == QGis.Point:
             self.geometry = 'geopoint'
@@ -95,9 +105,6 @@ class ODK_fields(QTreeView):
             self.geometry = 'geoshape'
         else :
             self.geometry = None
-        
-        model = QStandardItemModel()
-        model.setHorizontalHeaderLabels(['enabled', 'label', 'ODK type', 'hint', 'required', 'default', 'QVar_type', 'widget', 'choices','appearance'])
         
         if self.geometry:
             geo_field = {
@@ -132,10 +139,6 @@ class ODK_fields(QTreeView):
             name_item.addFieldDef(field)
             model.appendRow(name_item)
             
-        self.setModel(model)
-        self.hideColumn(6)
-        self.hideColumn(7)
-        #self.hideColumn(8)
 
         metadata_group = self.addGroup(metadata = True)
         for m in metadata:
@@ -173,6 +176,7 @@ class ODK_fields(QTreeView):
         group_item.setDragEnabled(True)
         group_item.setCheckable(True)
         group_item.setCheckState(Qt.Checked)
+        '''
         group_row = [group_item]
         for i in range (1,8):
             null_item = QStandardItem('')
@@ -180,11 +184,54 @@ class ODK_fields(QTreeView):
             null_item.setDropEnabled(True)
             null_item.setDragEnabled(False)
             #group_row.append(null_item)
-        model.appendRow(group_row)
+        '''
+        model.appendRow([group_item])
         if not name:
             self.setCurrentIndex(model.indexFromItem(group_item))
         return group_item
 
+    def backup(self):
+        model = self.model()
+        fieldsState = []
+        for count in range (0, model.rowCount()):
+            childRow = model.item(count)
+            probeSubChildRow = model.data(model.index(0,2,childRow.index()),Qt.DisplayRole)
+            if probeSubChildRow: #is fieldItem
+                dict = self.renderItemStructure(childRow.index(), output = 'backup')
+            else: #is groupItem
+                dict = self.renderGroupStructure(childRow.index(), output = 'backup')
+            dict['fieldEnabled'] = childRow.checkState() == Qt.Checked
+            fieldsState.append(dict)
+        return fieldsState
+
+    def recover(self,fieldsState,layerName):
+        self.layerName = layerName
+        model = self.modelDefaults()
+        for field in fieldsState:
+            if "control" in field: #is group item
+                groupItem = self.addGroup(name = field['label'] or field['name'])
+                if field['fieldEnabled']:
+                    groupItem.setCheckState(Qt.Checked)
+                else:
+                    groupItem.setCheckState(Qt.Unchecked)
+                self.setItemCheckState(groupItem,field['fieldEnabled'])
+                for child in field['children']:
+                    newItem = fieldItem(child['fieldName'])
+                    newItem.addFieldDef(child,recover = True)
+                    groupItem.appendRow([newItem])
+            else: #is field item
+                newItem = fieldItem(field['fieldName'])
+                newItem.addFieldDef(field,recover = True)
+                model.appendRow(newItem)
+            
+        self.setUniformRowHeights(True)
+        self.expandAll()
+
+    def setItemCheckState(self,item,checked):
+        if checked:
+            item.setCheckState(Qt.Checked)
+        else:
+            item.setCheckState(Qt.Unchecked)
 
     def renderToTable(self, title=None):
         if not title:
@@ -252,7 +299,6 @@ class ODK_fields(QTreeView):
         for count in range (0,len(defOrder)):
             if count == 0:
                 fieldDefFromModel['fieldName'] = itemIndex.data(Qt.DisplayRole)
-                print "FIELD:",fieldDefFromModel['fieldName']
             else:
                 fieldInd = model.index(0,count,itemIndex)
                 if defOrder[count] == 'fieldRequired':
@@ -265,7 +311,10 @@ class ODK_fields(QTreeView):
         
         if not fieldDefFromModel['fieldType']:
             return None
-        if output == 'dict':
+            
+        if output == 'backup':
+            return fieldDefFromModel
+        elif output == 'dict':
             structure = {
                 "type":  fieldDefFromModel['fieldType'],
                 "name":  fieldDefFromModel['fieldName'],
@@ -307,28 +356,31 @@ class ODK_fields(QTreeView):
                 for name, label in choicesDict.iteritems():
                     self.tableDef['choices'].append([slugify(fieldDefFromModel['fieldName']),name,label])
             self.tableDef['survey'].append(surveyRow)
+            return fieldDefFromModel
 
 
     def renderGroupStructure(self,groupIndex, output = 'dict'):
         model = self.model()
         groupLabel = model.itemFromIndex(groupIndex).data(Qt.DisplayRole)
         groupName = slugify(groupLabel)
-        if model.itemFromIndex(groupIndex).rowCount() == 0:
-            return None
         childrenList = []
         if groupName != 'metadata' and output == 'table':
             self.tableDef['survey'].append(['begin group',groupName,groupLabel,None,None,None,None,"field-list",None,None,None,None])
         for count in range (0, model.itemFromIndex(groupIndex).rowCount()):
             childRow = model.itemFromIndex(groupIndex.child(count,0))
-            childrenList.append(self.renderItemStructure(childRow.index(), output = output))
+            itemStructure = self.renderItemStructure(childRow.index(), output = output)
+            print itemStructure
+            itemStructure['fieldEnabled'] = childRow.checkState() == Qt.Checked
+            childrenList.append(itemStructure)
         if groupName != 'metadata' and output == 'table':
             self.tableDef['survey'].append(['end group',groupName,None,None,None,None,None,None,None,None,None,None])
-        if childrenList == []:
-            return None
-        else:
-            if output == 'dict':
-                return {"control": {"appearance": "field-list"}, "type": "group", "name": groupName, "label": groupLabel,
-                       "children": childrenList}
+        if output in ('dict', 'backup'):
+            if output == 'dict' and childrenList == []:
+                print "void group!"
+                return None
+            else:
+                print "group!"
+                return {"control": {"appearance": "field-list"}, "type": "group", "name": groupName, "label": groupLabel,"children": childrenList}
 
 
 class ODKDelegate(QItemDelegate):
@@ -337,6 +389,13 @@ class ODKDelegate(QItemDelegate):
         QItemDelegate.__init__(self, parent)
         self.parentClass = parentClass
     '''
+
+    def changeAppearanceAccordingly(self, type):
+        if type in appearanceDef:
+            appearance = appearanceDef[type][0]
+        else:
+            appearance = 'default'
+        self.currentIndex.model().setData(self.currentIndex.sibling(0,9),appearance, Qt.DisplayRole)
 
     def createEditor (self, parent, option, index):
         try:
@@ -348,6 +407,7 @@ class ODKDelegate(QItemDelegate):
         column = index.column()
         row = index.row()
         parentNode = index.model().data(index.parent(), Qt.EditRole)
+        self.currentIndex = index
         
         q_type = QVariant.nameToType(index.model().data(index.sibling(0,6), Qt.DisplayRole))
         
@@ -366,8 +426,9 @@ class ODKDelegate(QItemDelegate):
                 combobox_items = [content,'select one']
             editorQWidget.addItems(combobox_items)
             editorQWidget.setCurrentIndex(editorQWidget.findText(content))
+            editorQWidget.currentIndexChanged.connect(self.changeAppearanceAccordingly)
             return editorQWidget
-        elif column == 8 and parentNode:
+        elif column == 8 and parentNode: # qdialog for value/label map
             content = QgisODKChoices.getChoices(content, q_type, title = parentNode)
             print "content",content
             index.model().setData(index,content, Qt.DisplayRole)
@@ -399,38 +460,59 @@ class ODKDelegate(QItemDelegate):
 
 class fieldItem(QStandardItem):
 
-    def addFieldDef(self,fieldDef):
-        self.fieldDef = fieldDef
+    def addFieldDef(self,fieldDef, recover = None):
+        #self.fieldDef = fieldDef
         self.defOrder = ['fieldName', 'fieldLabel', 'fieldType', 'fieldHint', 'fieldRequired', 'fieldDefault', 'fieldQtype', 'fieldWidget', 'fieldChoices','fieldAppearance']
-        fieldDef['fieldType'] = self.getODKType(fieldDef)
-        if fieldDef['fieldType'] in appearanceDef.keys():
-            fieldDef['fieldAppearance'] = appearanceDef[fieldDef['fieldType']][0]
-        else:
-            fieldDef['fieldAppearance'] = 'default'
         row = []
-        for fdef in self.defOrder:
-            if fdef == 'fieldName':
-                sub_item = QStandardItem(None)
-            elif fdef == 'fieldRequired':
-                sub_item = QStandardItem(None)
-                sub_item.setCheckable(True)
-                if fieldDef['fieldRequired']:
-                    sub_item.setCheckState(Qt.Checked)
+        if recover: #backup dict provided if recovering fields state
+            for fdef in self.defOrder:
+                if fdef == 'fieldName':
+                    sub_item = QStandardItem(None)
+                elif fdef == 'fieldRequired':
+                    sub_item = QStandardItem(None)
+                    sub_item.setCheckable(True)
+                    if fieldDef['fieldRequired']:
+                        sub_item.setCheckState(Qt.Checked)
+                    else:
+                        sub_item.setCheckState(Qt.Unchecked)
                 else:
-                    sub_item.setCheckState(Qt.Unchecked)
-            elif fdef == 'fieldChoices':
-                sub_item = QStandardItem(json.dumps(fieldDef[fdef]))
+                    sub_item = QStandardItem(fieldDef[fdef])
+                row.append(sub_item)
+            self.appendRow(row)
+            self.setCheckable(True)
+            if fieldDef['fieldEnabled']:
+                self.setCheckState(Qt.Checked)
             else:
-                sub_item = QStandardItem(str(fieldDef[fdef]) or '')
-            sub_item.setDropEnabled(False)
-            sub_item.setDragEnabled(False)
-            row.append(sub_item)
-        self.appendRow(row)
-        self.setCheckable(True)
-        if fieldDef['fieldEnabled']:
-            self.setCheckState(Qt.Checked)
+                self.setCheckState(Qt.Unchecked)
         else:
-            self.setCheckState(Qt.Unchecked)
+            fieldDef['fieldType'] = self.getODKType(fieldDef)
+            if fieldDef['fieldType'] in appearanceDef.keys():
+                fieldDef['fieldAppearance'] = appearanceDef[fieldDef['fieldType']][0]
+            else:
+                fieldDef['fieldAppearance'] = 'default'
+            for fdef in self.defOrder:
+                if fdef == 'fieldName':
+                    sub_item = QStandardItem(None)
+                elif fdef == 'fieldRequired':
+                    sub_item = QStandardItem(None)
+                    sub_item.setCheckable(True)
+                    if fieldDef['fieldRequired']:
+                        sub_item.setCheckState(Qt.Checked)
+                    else:
+                        sub_item.setCheckState(Qt.Unchecked)
+                elif fdef == 'fieldChoices':
+                    sub_item = QStandardItem(json.dumps(fieldDef[fdef]))
+                else:
+                    sub_item = QStandardItem(str(fieldDef[fdef]) or '')
+                sub_item.setDropEnabled(False)
+                sub_item.setDragEnabled(False)
+                row.append(sub_item)
+            self.appendRow(row)
+            self.setCheckable(True)
+            if fieldDef['fieldEnabled']:
+                self.setCheckState(Qt.Checked)
+            else:
+                self.setCheckState(Qt.Unchecked)
 
 
     def getODKType(self,field):

@@ -51,9 +51,15 @@ class QgisODKDialog(QtGui.QDialog, Ui_QgisODKDialogBase):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-        icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(os.path.join(os.path.dirname(__file__),"settings.svg")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.settingsToolButton.setIcon(icon)
+        settingsIcon = QtGui.QIcon()
+        settingsIcon.addPixmap(QtGui.QPixmap(os.path.join(os.path.dirname(__file__),"settings.svg")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.settingsToolButton.setIcon(settingsIcon)
+        saveIcon = QtGui.QIcon()
+        saveIcon.addPixmap(QtGui.QPixmap(os.path.join(os.path.dirname(__file__),"save.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.ODKsaveButton.setIcon(saveIcon)
+        loadIcon = QtGui.QIcon()
+        loadIcon.addPixmap(QtGui.QPixmap(os.path.join(os.path.dirname(__file__),"load.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.ODKloadButton.setIcon(loadIcon)
 
 
 
