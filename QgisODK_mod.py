@@ -61,6 +61,7 @@ class QgisODK:
             'i18n',
             'QgisODK_{}.qm'.format(locale))
 
+
         if os.path.exists(locale_path):
             self.translator = QTranslator()
             self.translator.load(locale_path)
@@ -181,7 +182,7 @@ class QgisODK:
         self.QODKMenu = QMenu('QgisOKD')
         #self.QODKMenuAction = QAction(QIcon(os.path.join(self.plugin_dir,"icon.svg")), u"QgisODK", self.iface.legendInterface() )
         #self.QODKMenuAction.setMenu(self.QODKMenu)
-        self.QODKOutAction = QAction(QIcon(os.path.join(self.plugin_dir,"icon.svg")), u"export ODK form", self.QODKMenu )
+        self.QODKOutAction = QAction(QIcon(os.path.join(self.plugin_dir,"icon.svg")), self.tr(u"export ODK form"), self.QODKMenu )
         #self.QODKInAction = QAction(QIcon(os.path.join(self.plugin_dir,"icon.svg")), u"ODK in", self.QODKMenu )
         #self.QODKMenu.addAction(self.QODKOutAction)
         #self.QODKMenu.addAction(self.QODKInAction)
@@ -217,7 +218,7 @@ class QgisODK:
     def ODKSaveLayerStateAction(self):
         fieldsState = self.dlg.treeView.backup()
         workDir = QgsProject.instance().readPath("./")
-        fileName = QFileDialog().getSaveFileName(None,"Save QgisODK project", workDir, "*.json");
+        fileName = QFileDialog().getSaveFileName(None, self.tr("Save QgisODK project"), workDir, "*.json");
         if fileName:
             if QFileInfo(fileName).suffix() != "json":
                 fileName += ".json"
@@ -226,7 +227,7 @@ class QgisODK:
 
     def ODKLoadLayerStateAction(self):
         workDir = QgsProject.instance().readPath("./")
-        fileName = QFileDialog().getOpenFileName(None,"Load QgisODK project", workDir, "*.json");
+        fileName = QFileDialog().getOpenFileName(None, self.tr("Load QgisODK project"), workDir, "*.json");
         if fileName:
             with open(fileName, "r") as json_file:
                 fieldsState = json.load(json_file)
@@ -236,8 +237,6 @@ class QgisODK:
             self.dlg.layersComboBox.setCurrentIndex(0)
 
     def run(self):
-        """Run method that performs all the real work"""
-        # show the dialog
         self.populateVectorLayerCombo()
         self.ODKout(None)
         self.dlg.show()
@@ -269,14 +268,10 @@ class QgisODK:
         XMLFormDef = XMLDocument.createElement("FORM")
         currentFormConfig.writeXml(XMLFormDef)
         XMLDocument.appendChild(XMLFormDef)
-        #print XMLDocument.toString()
         fieldsModel = []
         for i in range(0,len(currentLayer.pendingFields())):
             fieldDef = {}
-            #print dir(currentLayer.pendingFields()[i])
             fieldDef['fieldName'] = currentLayer.pendingFields()[i].name()
-            #fieldLabel = currentLayer.pendingFields()[i].alias()
-            #fieldHint = currentLayer.pendingFields()[i].comment()
             fieldDef['fieldLabel'] = currentLayer.pendingFields()[i].comment()
             fieldDef['fieldHint'] = ''
             fieldDef['fieldType'] = currentLayer.pendingFields()[i].type()
@@ -305,12 +300,11 @@ class QgisODK:
     
     def exportXForm(self):
         json_out = self.dlg.treeView.renderToDict()
-        print json.dumps(json_out)
         survey = create_survey_element_from_dict(json_out)
         warnings = []
         xform = survey.to_xml(validate=None, warnings=warnings)
         workDir = QgsProject.instance().readPath("./")
-        fileName = QFileDialog().getSaveFileName(None,"Save XForm", workDir, "*.xml");
+        fileName = QFileDialog().getSaveFileName(None,self.tr("Save XForm"), workDir, "*.xml");
         if fileName:
             if QFileInfo(fileName).suffix() != "xml":
                 fileName += ".xml"
@@ -321,7 +315,7 @@ class QgisODK:
     def exportXlsForm(self, fileName = None):
         workDir = QgsProject.instance().readPath("./")
         if not fileName:
-            fileName = QFileDialog().getSaveFileName(None,"Save XlsForm", workDir, "*.xls");
+            fileName = QFileDialog().getSaveFileName(None, self.tr("Save XlsForm"), workDir, "*.xls");
         if fileName:
             if QFileInfo(fileName).suffix() != "xls":
                 fileName += ".xls"
@@ -342,16 +336,15 @@ class QgisODK:
         tmpXlsFileName = os.path.join(self.plugin_dir,"tmpodk.xls")
         xForm_id = self.exportXlsForm(fileName=tmpXlsFileName)
         response = self.settingsDlg.sendForm(xForm_id,tmpXlsFileName)
-        print "RESPONSE:",response
         os.remove(tmpXlsFileName)
-        if response.status_code != requests.codes.ok:
+        if not response.status_code in (200,201):
             #msg = self.iface.messageBar().createMessage( u"QgisODK plugin error saving form %s, %s." % (response.status_code,response.reason))
             #self.iface.messageBar().pushWidget(msg,QgsMessageBar.WARNING, 6)
-            self.iface.messageBar().pushMessage("QgisODK plugin", "error saving form %s, %s." % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin", "error saving form %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
         else:
             #msg = self.iface.messageBar().createMessage( u"QgisODK plugin: form successfully exported")
             #self.iface.messageBar().pushWidget(msg,QgsMessageBar.INFO, 6)
-            self.iface.messageBar().pushMessage("QgisODK plugin", "form successfully exported", level=QgsMessageBar.INFO, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin", "form successfully exported"), level=QgsMessageBar.INFO, duration=6)
 
     
     def closeDlg(self):
@@ -401,7 +394,6 @@ class QgisODK:
                 geojson_file.write(json.dumps(geojsonDict))
             layer = self.iface.addVectorLayer(os.path.join(workDir,geoJsonFileName), geoJsonFileName[:-8], "ogr")
             QgsMapLayerRegistry.instance().addMapLayer(layer)
-            print 'CONTENT',response.status_code,response.reason,response.text
             currentLayerState = self.getDomDef(self.iface.legendInterface().currentLayer())
                 
             currentFormConfig = currentLayer.editFormConfig() #recover
@@ -414,5 +406,5 @@ class QgisODK:
             print response.text
             #msg = self.iface.messageBar().createMessage( u"QgisODK plugin error loading csv table %s, %s." % (response.status_code,response.reason))
             #self.iface.messageBar().pushWidget(msg,QgsMessageBar.WARNING, 6)
-            self.iface.messageBar().pushMessage("QgisODK plugin", "error loading csv table %s, %s." % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin", "error loading csv table %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
 

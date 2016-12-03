@@ -21,7 +21,7 @@
  ***************************************************************************/
 """
 
-from PyQt4.QtCore import Qt, QVariant
+from PyQt4.QtCore import Qt, QVariant, QSettings, QTranslator, qVersion, QCoreApplication
 from PyQt4.QtGui import QTableWidget, QTableWidgetItem, QLineEdit, QComboBox, QCheckBox, QAbstractItemView
 from PyQt4.QtGui import QTreeView, QStandardItem, QStandardItemModel, QItemSelectionModel, QItemDelegate
 from PyQt4.QtGui import QPen, QBrush, QColor
@@ -33,6 +33,7 @@ from QgisODK_mod_choices import QgisODKChoices
 import json
 import unicodedata
 import re
+import os
 
 appearanceDef = {
     'group': ['field-list','table-list'],
@@ -84,9 +85,36 @@ class ODK_fields(QTreeView):
         self.setIndentation(15)
         self.setRootIsDecorated(True)
 
+        # initialize QTranslator
+        self.plugin_dir = os.path.dirname(__file__)
+        locale = QSettings().value('locale/userLocale')[0:2]
+        locale_path = os.path.join(
+            self.plugin_dir,
+            'i18n',
+            'QgisODK_{}.qm'.format(locale))
+        if os.path.exists(locale_path):
+            self.translator = QTranslator()
+            self.translator.load(locale_path)
+            if qVersion() > '4.3.3':
+                QCoreApplication.installTranslator(self.translator)
+
+    def tr(self, message):
+        return QCoreApplication.translate('QgisODK', message)
+
     def modelDefaults(self):
         model = QStandardItemModel()
-        model.setHorizontalHeaderLabels(['enabled', 'label', 'ODK type', 'hint', 'required', 'default', 'QVar_type', 'widget', 'choices','appearance'])
+        model.setHorizontalHeaderLabels([
+            self.tr('enabled'),
+            self.tr('label'),
+            self.tr('ODK type'),
+            self.tr('hint'),
+            self.tr('required'),
+            self.tr('default'),
+            self.tr('QVar_type'),
+            self.tr('widget'),
+            self.tr('choices'),
+            self.tr('appearance')
+        ])
         self.setModel(model)
         self.hideColumn(6)
         self.hideColumn(7)

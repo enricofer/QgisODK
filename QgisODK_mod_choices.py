@@ -26,7 +26,7 @@ import json
 
 from PyQt4 import QtGui, uic
 from PyQt4.QtGui import QTableWidgetItem, QSizePolicy
-from PyQt4.QtCore import Qt, QSize
+from PyQt4.QtCore import Qt, QSize, QSettings, QTranslator, qVersion, QCoreApplication
 from QgisODK_mod_dialog_choices import Ui_ChoicesDialog
 
 
@@ -77,7 +77,6 @@ class QgisODKChoices(QtGui.QDialog, Ui_ChoicesDialog):
     
     def getChoicesJson(self):
         choicesDict = {}
-        print "range",self.choicesTable.rowCount()
         for i in range(0,self.choicesTable.rowCount()):
             print self.choicesTable.item(i,0).data(Qt.EditRole)
             try:
@@ -88,7 +87,6 @@ class QgisODKChoices(QtGui.QDialog, Ui_ChoicesDialog):
     
     def exreject(self):
         self.result = self.choicesJson
-        print "REJECTED",self.result
         self.close()
         self.acceptedFlag = None
 

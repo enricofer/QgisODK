@@ -28,7 +28,7 @@ import time
 
 from PyQt4 import QtGui, uic
 from PyQt4.QtGui import QTableWidget, QWidget, QTableWidgetItem, QSizePolicy
-from PyQt4.QtCore import Qt, QSettings, QSize
+from PyQt4.QtCore import Qt, QSettings, QSize, QSettings, QTranslator, qVersion, QCoreApplication
 from qgis.core import QgsProject, QgsMapLayerRegistry
 from QgisODK_mod_dialog_base import Ui_QgisODKDialogBase
 from QgisODK_mod_dialog_services import Ui_ServicesDialog
@@ -123,7 +123,6 @@ class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
         """Constructor."""
         self.iface = module.iface
         self.settingsDlg = module.settingsDlg
-        print "PARENT:",self.iface,self.settingsDlg
         super(QgisODKImportCollectedData, self).__init__(parent)
         # Set up the user interface from Designer.
         # After setupUI you can access any designer object by doing
@@ -134,10 +133,26 @@ class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
+        # initialize QTranslator
+        self.plugin_dir = os.path.dirname(__file__)
+        locale = QSettings().value('locale/userLocale')[0:2]
+        locale_path = os.path.join(
+            self.plugin_dir,
+            'i18n',
+            'QgisODK_{}.qm'.format(locale))
+        if os.path.exists(locale_path):
+            self.translator = QTranslator()
+            self.translator.load(locale_path)
+            if qVersion() > '4.3.3':
+                QCoreApplication.installTranslator(self.translator)
+
+    def tr(self, message):
+        return QCoreApplication.translate('QgisODK', message)
+
     def show(self):
         availableData,response = self.settingsDlg.getAvailableDataCollections()
-        print "availableData:",availableData
         if availableData:
+            self.availableDataList.clear()
             self.availableDataList.addItems(availableData)
         super(QgisODKImportCollectedData, self).show()
         self.raise_()
@@ -151,21 +166,9 @@ class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
                 geojson_file.write(json.dumps(geojsonDict))
             layer = self.iface.addVectorLayer(os.path.join(workDir,geoJsonFileName), geoJsonFileName[:-8], "ogr")
             QgsMapLayerRegistry.instance().addMapLayer(layer)
-            print 'CONTENT',response.status_code,response.reason,response.text
-            
-            '''
-            currentLayerState = self.getDomDef(self.iface.legendInterface().currentLayer())
-                
-            currentFormConfig = currentLayer.editFormConfig() #recover
-            fieldsModel = {}
-            for i in range(0,len(currentLayer.pendingFields())):
-                fieldsModel[currentLayer.pendingFields()[i].name()] = currentFormConfig.widgetType(i)
-                
-            layer.readLayerXML(currentLayerState)
-            '''
         else:
             print response.text
-            self.iface.messageBar().pushMessage("QgisODK plugin", "error loading csv table %s, %s." % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin", "error loading csv table %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
 
         
     def reject(self):
@@ -259,7 +262,6 @@ class external_service(QTableWidget):
 
     def setup(self):
         S = QSettings()
-        print self.parent.parent().currentIndex()
         S.setValue("qgisodk/", self.parent.parent().currentIndex())
         for row in range (0,self.rowCount()):
             S.setValue("qgisodk/%s/%s/" % (self.service_id,self.item(row,0).text()),self.item(row,1).text())
@@ -280,9 +282,7 @@ class external_service(QTableWidget):
         forms = response.json()
         availableDataCollections = []
         for form in forms:
-            print "FORM:",form["id_string"]
             availableDataCollections.append(form["id_string"])
-        print availableDataCollections
         return availableDataCollections,response
     
     def formIDToPk(self,xForm_id):
@@ -294,7 +294,6 @@ class external_service(QTableWidget):
         forms = response.json()
         form_key = None
         for form in forms:
-            print form['sms_id_string']
             if form['sms_id_string'] == xForm_id:
                 form_key = form['formid']
                 break
@@ -330,7 +329,6 @@ class ona(external_service):
         super(ona, self).__init__(parent,self.parameters)
 
     def sendForm(self, xForm_id, xForm):
-        print "ID", xForm_id
         
         #step1 - verify if form exists:
         form_key, response = self.formIDToPk(xForm_id)
@@ -376,7 +374,6 @@ class ona(external_service):
 
     def getLayer(self,xForm_id):
         remoteResponse = self.getJSON(xForm_id)
-        print "GETLAYER1: ",remoteResponse.status_code, remoteResponse.reason
         if remoteResponse.status_code == requests.codes.ok:
             remoteData = remoteResponse.json()
             geojson = {
