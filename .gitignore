@@ -4,5 +4,4 @@ Makefile
 help/
 .idea/
 sample/
-i18n/
 .DS_Store

@@ -270,7 +270,6 @@ class ODK_fields(QTreeView):
             childRow = model.item(count)
             if childRow.rowCount() > 0 and childRow.checkState() == Qt.Checked: #exclude void groups and not enabled
                 probeSubChildRow = model.data(model.index(0,2,childRow.index()),Qt.DisplayRole)
-                print "PROBE",probeSubChildRow
                 if probeSubChildRow: #is fieldItem
                     self.renderItemStructure(childRow.index(), output = 'table')
                 else: #is groupItem
@@ -289,7 +288,6 @@ class ODK_fields(QTreeView):
             childRow = model.item(count)
             if childRow.rowCount() > 0 and childRow.checkState() == Qt.Checked: #exclude void groups and not enabled
                 probeSubChildRow = model.data(model.index(0,2,childRow.index()),Qt.DisplayRole)
-                print "PROBE",probeSubChildRow
                 if probeSubChildRow: #is fieldItem
                     dict = self.renderItemStructure(childRow.index(), output = 'dict')
                 else: #is groupItem
@@ -397,17 +395,14 @@ class ODK_fields(QTreeView):
         for count in range (0, model.itemFromIndex(groupIndex).rowCount()):
             childRow = model.itemFromIndex(groupIndex.child(count,0))
             itemStructure = self.renderItemStructure(childRow.index(), output = output)
-            print itemStructure
             itemStructure['fieldEnabled'] = childRow.checkState() == Qt.Checked
             childrenList.append(itemStructure)
         if groupName != 'metadata' and output == 'table':
             self.tableDef['survey'].append(['end group',groupName,None,None,None,None,None,None,None,None,None,None])
         if output in ('dict', 'backup'):
             if output == 'dict' and childrenList == []:
-                print "void group!"
                 return None
             else:
-                print "group!"
                 return {"control": {"appearance": "field-list"}, "type": "group", "name": groupName, "label": groupLabel,"children": childrenList}
 
 
@@ -458,12 +453,10 @@ class ODKDelegate(QItemDelegate):
             return editorQWidget
         elif column == 8 and parentNode: # qdialog for value/label map
             content = QgisODKChoices.getChoices(content, q_type, title = parentNode)
-            print "content",content
             index.model().setData(index,content, Qt.DisplayRole)
             QItemDelegate.createEditor(self, parent, option, index)
         elif column == 9 and parentNode: # combobox for appearance
             contentType = index.model().data(index.sibling(0,2), Qt.DisplayRole)
-            print "contentType", contentType
             if contentType == '' or not contentType in appearanceDef.keys():
                 return
             editorQWidget = QComboBox(parent)

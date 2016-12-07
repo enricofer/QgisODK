@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<h:html xmlns="http://www.w3.org/2002/xforms" xmlns:ev="http://www.w3.org/2001/xml-events" xmlns:h="http://www.w3.org/1999/xhtml" xmlns:jr="http://openrosa.org/javarosa" xmlns:orx="http://openrosa.org/xforms" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <h:head>
+    <h:title>A_PVEG</h:title>
+    <model>
+      <instance>
+        <a-pveg id="a-pveg">
+          <GEOMETRY/>
+          <FID/>
+          <metadata>
+            <start/>
+            <end/>
+            <today/>
+            <deviceid/>
+            <subscriberid/>
+            <simserial/>
+            <phonenumber/>
+          </metadata>
+        </a-pveg>
+      </instance>
+      <bind nodeset="/a-pveg/GEOMETRY" required="true()" type="geoshape"/>
+      <bind nodeset="/a-pveg/FID" type="decimal"/>
+      <bind jr:preload="timestamp" jr:preloadParams="start" nodeset="/a-pveg/metadata/start" type="dateTime"/>
+      <bind jr:preload="timestamp" jr:preloadParams="end" nodeset="/a-pveg/metadata/end" type="dateTime"/>
+      <bind jr:preload="date" jr:preloadParams="today" nodeset="/a-pveg/metadata/today" type="date"/>
+      <bind jr:preload="property" jr:preloadParams="deviceid" nodeset="/a-pveg/metadata/deviceid" type="string"/>
+      <bind jr:preload="property" jr:preloadParams="subscriberid" nodeset="/a-pveg/metadata/subscriberid" type="string"/>
+      <bind jr:preload="property" jr:preloadParams="simserial" nodeset="/a-pveg/metadata/simserial" type="string"/>
+      <bind jr:preload="property" jr:preloadParams="phonenumber" nodeset="/a-pveg/metadata/phonenumber" type="string"/>
+    </model>
+  </h:head>
+  <h:body>
+    <input ref="/a-pveg/GEOMETRY">
+      <label>Insert geometry</label>
+    </input>
+    <input ref="/a-pveg/FID">
+      <label>FID</label>
+    </input>
+    <group appearance="field-list" ref="/a-pveg/metadata">
+      <label>Metadata</label>
+    </group>
+  </h:body>
+</h:html>

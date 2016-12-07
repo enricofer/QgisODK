@@ -25,15 +25,20 @@ import os
 import requests
 import json
 import time
+import webbrowser
 
 from PyQt4 import QtGui, uic
-from PyQt4.QtGui import QTableWidget, QWidget, QTableWidgetItem, QSizePolicy
-from PyQt4.QtCore import Qt, QSettings, QSize, QSettings, QTranslator, qVersion, QCoreApplication
-from qgis.core import QgsProject, QgsMapLayerRegistry
+from PyQt4.QtGui import QTableWidget, QWidget, QTableWidgetItem, QSizePolicy, QMessageBox
+from PyQt4.QtCore import Qt, QSettings, QSize, QSettings, QTranslator, qVersion, QCoreApplication, QTimer
+from qgis.core import QgsProject, QgsMapLayerRegistry, QgsNetworkAccessManager
+from qgis.gui import QgsMessageBar
+
 from QgisODK_mod_dialog_base import Ui_QgisODKDialogBase
 from QgisODK_mod_dialog_services import Ui_ServicesDialog
 from QgisODK_mod_dialog_import import Ui_ImportDialog
 from QgisODK_mod_dialog_choices import Ui_ChoicesDialog
+from QgisODK_mod_dialog_browser import Ui_AuthBrowser
+
 from fields_tree import slugify
 from dateutil.parser import parse
 
@@ -62,59 +67,45 @@ class QgisODKDialog(QtGui.QDialog, Ui_QgisODKDialogBase):
         self.ODKloadButton.setIcon(loadIcon)
 
 
-
-class QgisODKChoices(QtGui.QDialog, Ui_ChoicesDialog):
-
-    def __init__(self,choicesJson, parent = None):
-        """Constructor."""
-        super(QgisODKChoices, self).__init__(parent)
-        # Set up the user interface from Designer.
-        # After setupUI you can access any designer object by doing
-        # self.<objectname>, and you can use autoconnect slots - see
-        # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
-        # #widgets-and-dialogs-with-auto-connect
-        self.setupUi(self)
-        
-        self.choicesDict = json.loads(choicesJson)
-        self.choicesTable.setColumnCount(2)
-        self.choicesTable.setRowCount(len(choicesDict))
-        for i,choice in enumerate(choicesDict):
-            print choice
-            choiceValueWidget = QTableWidgetItem()
-            choiceLabelWidget = QTableWidgetItem()
-            choiceValueWidget.setData(Qt.EditRole,choice)
-            choiceLabelWidget.setData(Qt.EditRole,choicesDict[choice])
-            editorQWidget.setItem(i,0,choiceValueWidget)
-            editorQWidget.setItem(i,1,choiceLabelWidget)
-        self.choicesTable.setItem(i+1,0,QTableWidgetItem(""))
-        self.choicesTable.setItem(i+1,1,QTableWidgetItem(""))
-        
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.rejected.connect(self.reject)
-        self.acceptedFlag = None
-        
-    def accept(self):
-        choicesDict = {}
-        for i in range(0,self.choicesTable.rowCount()):
-            choicesDict[self.choicesTable.itemAt(i,0).data(Qt.EditRole)] = self.choicesTable.itemAt(i,1).data(Qt.EditRole)
-        self.result = json.dumps(choicesDict)
-        self.close()
-        self.acceptedFlag = True
     
-    def reject(self):
-        self.close()
-        self.acceptedFlag = None
+
+class authBrowser(QtGui.QDialog, Ui_AuthBrowser):
+
+    def __init__(self, html, parent = None):
+        super(authBrowser, self).__init__(parent)
+        self.setupUi(self)
+        self.webView.setHtml(html)
+        self.timer = QTimer()
+        self.timer.setInterval(500)
+        self.timer.timeout.connect(self.codeProbe)
+        self.timer.start()
+        self.show()
+        self.raise_()
+        self.auth_code = None
+        self.webView.page().setNetworkAccessManager(QgsNetworkAccessManager.instance())
+
+    def codeProbe(self):
+        frame = self.webView.page().mainFrame()
+        frame.evaluateJavaScript('document.getElementById("code").value')
+        codeElement = frame.findFirstElement("#code")
+        #val = codeElement.evaluateJavaScript("this.value") # redirect urn:ietf:wg:oauth:2.0:oob
+        val = self.webView.title().split('=')
+        if val[0] == 'Success code':
+            self.auth_code = val[1]
+            print self.auth_code
+            self.accept()
+        else:
+            self.auth_code = None
 
     @staticmethod
-    def getChoices(choicesJson,title=""):
-        dialog = QgisODKChoices(choicesJson)
-        dialog.setWindowTitle(title)
+    def getCode(html, title=""):
+        dialog = authBrowser(html)
         result = dialog.exec_()
-        dialog.show()
-        if dialog.acceptedFlag:
-            return (dialog.result)
+        dialog.timer.stop()
+        if result == QtGui.QDialog.Accepted:
+            return dialog.auth_code
         else:
-            return (None)
+            return None
 
 
 class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
@@ -168,7 +159,7 @@ class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
             QgsMapLayerRegistry.instance().addMapLayer(layer)
         else:
             print response.text
-            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin", "error loading csv table %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("error loading csv table %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
 
         
     def reject(self):
@@ -177,7 +168,7 @@ class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
 class QgisODKServices(QtGui.QDialog, Ui_ServicesDialog):
 
     services = [
-        'ona', 'google'
+        'ona', 'google_drive'
     ]
     
 
@@ -221,6 +212,12 @@ class QgisODKServices(QtGui.QDialog, Ui_ServicesDialog):
     
     def reject(self):
         self.hide()
+
+    def getExportMethod(self):
+        return self.getCurrentService().getExportMethod()
+
+    def getExportExtension(self):
+        return self.getCurrentService().getExportExtension()
         
     def sendForm(self, xForm_id, xForm):
         response = self.getCurrentService().sendForm(xForm_id, xForm)
@@ -327,6 +324,12 @@ class ona(external_service):
     
     def __init__(self, parent):
         super(ona, self).__init__(parent,self.parameters)
+
+    def getExportMethod(self):
+        return 'exportXlsForm'
+
+    def getExportExtension(self):
+        return 'xls'
 
     def sendForm(self, xForm_id, xForm):
         
@@ -446,14 +449,153 @@ class ona(external_service):
         else:
             return None, remoteResponse
 
-class google(external_service):
+class google_drive(external_service):
     parameters = [
-        ["id","google drive"],
-        ["sheet",""],
-        ["drive key", ""],
-        ["user", ""],
-        ["password", ""],
+        ["id","google_drive"],
+        ["folder",""],
+        ["google drive login", ""]
     ]
     
     def __init__(self, parent):
-        super(google, self).__init__(parent,self.parameters)
+        super(google_drive, self).__init__(parent,self.parameters)
+        self.authorization = None
+        self.verification = None
+        self.client_id = "88596974458-r5dckj032ton00idb87c4oivqq2k1pks.apps.googleusercontent.com"
+        self.client_secret = "c6qKnhBdVxkPMH88lHf285hQ"
+
+    def getExportMethod(self):
+        return 'exportXForm'
+
+    def getExportExtension(self):
+        return 'xml'
+
+    def getIdFromName(self,fileName):
+        if not self.authorization:
+            self.get_authorization()
+        url = 'https://www.googleapis.com/drive/v3/files'
+        headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token'])}
+        params = {"q": "name contains '%s'" % fileName, "spaces": "drive"}
+        response = requests.get( url, headers = headers, params = params )
+        print "getIdFromName", response
+        print "getIdFromName", response.json()
+        if response.status_code == requests.codes.ok:
+            found = response.json()
+            files = found['files']
+            if len(files) > 0:
+                return files[0]['id']
+            else:
+                return None
+        
+
+    def excreateFolder(self,folderName):
+        if not self.authorization:
+            self.get_authorization()
+        url = 'https://www.googleapis.com/drive/v3/files?uploadType=multipart'
+        headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token']), 'Content-Type': 'application/json; charset=UTF-8' }
+        #params = DataDict(name = folderName, mimeType = 'application/vnd.google-apps.folder')
+        metadata = {
+            "name": "pinocchio",
+            "mimeType": 'application/vnd.google-apps.folder'
+        }
+        files = {'data':DataDict(metadata),'file':"folder_dummy_data" }
+        response = requests.post( url, headers = headers, files = files)
+        print "createFolder", response
+        print "createFolder", response.json()
+
+    def createFolder(self,folderName):
+        if not self.authorization:
+            self.get_authorization()
+        url = 'https://www.googleapis.com/drive/v3/files'
+        headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token'])}
+        metadata = {
+            "name": folderName,
+            "mimeType": 'application/vnd.google-apps.folder'
+        }
+        response = requests.post( url, headers = headers, params = metadata)
+        print "CREATE FOLDER",response.json()
+        return response.json()
+
+    def get_verification(self):
+        verification_params = {
+            'response_type': 'code',
+            'client_id': self.client_id,
+            'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob:auto', #
+            'scope': 'https://www.googleapis.com/auth/drive.file',
+            'login_hint': self.getValue('google drive login')
+        }
+        response = requests.post('https://accounts.google.com/o/oauth2/v2/auth', params=verification_params)
+        if response.status_code == requests.codes.ok:
+            self.verification = authBrowser.getCode(response.text)
+            print "verificated"
+        
+        
+    def get_authorization(self):
+        if not self.verification:
+            self.get_verification()
+
+        authorization_params = {
+            'client_id': self.client_id,
+            'client_secret': self.client_secret,
+            'code': self.verification,
+            'grant_type': 'authorization_code',
+            'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob:auto'
+        }
+        print authorization_params
+        response = requests.post('https://www.googleapis.com/oauth2/v4/token', params=authorization_params)
+        print response.json()
+        if response.status_code == requests.codes.ok:
+            authorization = response.json()
+            print "ok"
+            if 'error' in authorization:
+                QMessageBox().warning(None,"Google authorization error", "Google authorization error: %s" % authorization['error'])
+                self.verification = None
+                self.authorization = None
+            else:
+                print "authorized"
+                self.authorization = authorization
+        elif response.status_code == 401: # token expired
+            print "expired"
+            refresh_params =  {
+                'client_id': self.client_id,
+                'client_secret': self.client_secret,
+                'refresh_token': self.authorization['refresh_token'],
+                'grant_type': 'refresh_token'
+            }
+
+        else:
+            print response.text
+        
+        
+    def sendForm(self, xForm_id, xForm):
+        if not self.authorization:
+            self.get_authorization()
+
+        xForm_id += '.xml'
+        fileId = self.getIdFromName(xForm_id)
+        
+        if fileId: 
+            method = "PATCH"
+            url = 'https://www.googleapis.com/upload/drive/v3/files/%s?uploadType=multipart' % fileId
+            print "UPDATE", xForm_id
+        else:
+            method = "POST"
+            url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart'
+            print "CREATE", xForm_id
+        
+        headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token']) }
+        
+        data = ('metadata',DataDict(name = xForm_id, description = 'uploaded by QgisODK plugin', parents = [{"id":'appDataFolder'}]),'application/json; charset=UTF-8')
+        file = (xForm,open(xForm,'r'),'text/xml')
+        files = {'data':data, 'file':file }
+        response = requests.request(method, url, headers = headers, files = files )
+        print response
+        print response.text
+        print response.json()
+        self.createFolder("ODK")
+        #self.getIdFromName("attivita-commerciali")
+        return response
+        
+        
+class DataDict(dict):
+  def read(self):
+      return str( self )

@@ -298,53 +298,54 @@ class QgisODK:
     def addODKGroup(self):
         self.dlg.treeView.addGroup()
     
-    def exportXForm(self):
+    def exportXForm(self, fileName = None):
+        workDir = QgsProject.instance().readPath("./")
+        if not fileName:
+            fileName = QFileDialog().getSaveFileName(None, self.tr("Save XForm"), workDir, "*.xml")
+        if QFileInfo(fileName).suffix() != "xml":
+            fileName += ".xml"
         json_out = self.dlg.treeView.renderToDict()
         survey = create_survey_element_from_dict(json_out)
         warnings = []
         xform = survey.to_xml(validate=None, warnings=warnings)
-        workDir = QgsProject.instance().readPath("./")
-        fileName = QFileDialog().getSaveFileName(None,self.tr("Save XForm"), workDir, "*.xml");
-        if fileName:
-            if QFileInfo(fileName).suffix() != "xml":
-                fileName += ".xml"
-            with io.open(fileName, "w", encoding="utf8") as xml_file:
-                xml_file.write(xform)
-            
+        with io.open(fileName, "w", encoding="utf8") as xml_file:
+            xml_file.write(xform)
+        xForm_id = json_out["name"]
+        return xForm_id
     
     def exportXlsForm(self, fileName = None):
         workDir = QgsProject.instance().readPath("./")
         if not fileName:
-            fileName = QFileDialog().getSaveFileName(None, self.tr("Save XlsForm"), workDir, "*.xls");
-        if fileName:
-            if QFileInfo(fileName).suffix() != "xls":
-                fileName += ".xls"
-            tableDef = self.dlg.treeView.renderToTable()
-            workbook = xlsxwriter.Workbook(fileName)
-            for sheetName, sheetContent in tableDef.iteritems():
-                worksheet = workbook.add_worksheet(sheetName)
-                for row, rowContent in enumerate(sheetContent):
-                    for col, cellContent in enumerate(rowContent):
-                        worksheet.write(row, col,cellContent)
-            workbook.close()
-            with open(fileName, mode='rb') as f:
-                fileContent = f.read()
-            xForm_id = tableDef['settings'][1][1]
-            return xForm_id
+            fileName = QFileDialog().getSaveFileName(None, self.tr("Save XlsForm"), workDir, "*.xls")
+        if QFileInfo(fileName).suffix() != "xls":
+            fileName += ".xls"
+        tableDef = self.dlg.treeView.renderToTable()
+        workbook = xlsxwriter.Workbook(fileName)
+        for sheetName, sheetContent in tableDef.iteritems():
+            worksheet = workbook.add_worksheet(sheetName)
+            for row, rowContent in enumerate(sheetContent):
+                for col, cellContent in enumerate(rowContent):
+                    worksheet.write(row, col,cellContent)
+        workbook.close()
+        with open(fileName, mode='rb') as f:
+            fileContent = f.read()
+        xForm_id = tableDef['settings'][1][1]
+        return xForm_id
 
     def exportToWebService(self):
-        tmpXlsFileName = os.path.join(self.plugin_dir,"tmpodk.xls")
-        xForm_id = self.exportXlsForm(fileName=tmpXlsFileName)
+        tmpXlsFileName = os.path.join(self.plugin_dir,"tmpodk."+self.settingsDlg.getExportExtension())
+        exportMethod = getattr(self, self.settingsDlg.getExportMethod())
+        xForm_id = exportMethod(fileName=tmpXlsFileName)
         response = self.settingsDlg.sendForm(xForm_id,tmpXlsFileName)
         os.remove(tmpXlsFileName)
         if not response.status_code in (200,201):
             #msg = self.iface.messageBar().createMessage( u"QgisODK plugin error saving form %s, %s." % (response.status_code,response.reason))
             #self.iface.messageBar().pushWidget(msg,QgsMessageBar.WARNING, 6)
-            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin", "error saving form %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("error saving form %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
         else:
             #msg = self.iface.messageBar().createMessage( u"QgisODK plugin: form successfully exported")
             #self.iface.messageBar().pushWidget(msg,QgsMessageBar.INFO, 6)
-            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin", "form successfully exported"), level=QgsMessageBar.INFO, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("form successfully exported"), level=QgsMessageBar.INFO, duration=6)
 
     
     def closeDlg(self):
@@ -406,5 +407,5 @@ class QgisODK:
             print response.text
             #msg = self.iface.messageBar().createMessage( u"QgisODK plugin error loading csv table %s, %s." % (response.status_code,response.reason))
             #self.iface.messageBar().pushWidget(msg,QgsMessageBar.WARNING, 6)
-            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin", "error loading csv table %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("error loading csv table %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
 
