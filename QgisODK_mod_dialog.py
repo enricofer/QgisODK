@@ -82,7 +82,7 @@ class authBrowser(QtGui.QDialog, Ui_AuthBrowser):
         self.show()
         self.raise_()
         self.auth_code = None
-        self.webView.page().setNetworkAccessManager(QgsNetworkAccessManager.instance())
+        #self.webView.page().setNetworkAccessManager(QgsNetworkAccessManager.instance())
 
     def codeProbe(self):
         frame = self.webView.page().mainFrame()
@@ -218,6 +218,9 @@ class QgisODKServices(QtGui.QDialog, Ui_ServicesDialog):
 
     def getExportExtension(self):
         return self.getCurrentService().getExportExtension()
+
+    def getServiceName(self):
+        return self.getCurrentService().getServiceName()
         
     def sendForm(self, xForm_id, xForm):
         response = self.getCurrentService().sendForm(xForm_id, xForm)
@@ -256,6 +259,11 @@ class external_service(QTableWidget):
                 S.setValue("qgisodk/%s/%s/" % (self.service_id,self.item(row,0).text()),parameter[1])
             else:
                 self.setItem(row,1,QTableWidgetItem (valueFromSettings))
+
+
+    def getServiceName(self):
+        return self.service_id
+
 
     def setup(self):
         S = QSettings()
@@ -453,7 +461,8 @@ class google_drive(external_service):
     parameters = [
         ["id","google_drive"],
         ["folder",""],
-        ["google drive login", ""]
+        ["google drive login", ""],
+        ["google sheet upload", ""]
     ]
     
     def __init__(self, parent):
@@ -469,7 +478,7 @@ class google_drive(external_service):
     def getExportExtension(self):
         return 'xml'
 
-    def getIdFromName(self,fileName):
+    def getIdFromName(self,fileName, mimeType = None):
         if not self.authorization:
             self.get_authorization()
         url = 'https://www.googleapis.com/drive/v3/files'
@@ -482,45 +491,45 @@ class google_drive(external_service):
             found = response.json()
             files = found['files']
             if len(files) > 0:
-                return files[0]['id']
+                if mimeType:
+                    if files[0]['mimeType'] == mimeType:
+                        return files[0]['id']
+                    else:
+                        return None
+                else:
+                    return files[0]['id']
             else:
                 return None
         
 
-    def excreateFolder(self,folderName):
-        if not self.authorization:
-            self.get_authorization()
-        url = 'https://www.googleapis.com/drive/v3/files?uploadType=multipart'
-        headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token']), 'Content-Type': 'application/json; charset=UTF-8' }
-        #params = DataDict(name = folderName, mimeType = 'application/vnd.google-apps.folder')
-        metadata = {
-            "name": "pinocchio",
-            "mimeType": 'application/vnd.google-apps.folder'
-        }
-        files = {'data':DataDict(metadata),'file':"folder_dummy_data" }
-        response = requests.post( url, headers = headers, files = files)
-        print "createFolder", response
-        print "createFolder", response.json()
-
     def createFolder(self,folderName):
         if not self.authorization:
             self.get_authorization()
-        url = 'https://www.googleapis.com/drive/v3/files'
-        headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token'])}
-        metadata = {
-            "name": folderName,
-            "mimeType": 'application/vnd.google-apps.folder'
-        }
-        response = requests.post( url, headers = headers, params = metadata)
-        print "CREATE FOLDER",response.json()
-        return response.json()
+        if folderName == '':
+            return 'root'
+        folderId = self.getIdFromName(folderName, mimeType = 'application/vnd.google-apps.folder')
+        print "FOLDER:", folderName, folderId
+        if folderId:
+            print "trovato"
+            return folderId
+        else:
+            url = 'https://www.googleapis.com/drive/v3/files'
+            headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token']), 'Content-Type': 'application/json'}
+            metadata = {
+                "name": folderName,
+                "mimeType": 'application/vnd.google-apps.folder'
+            }
+            response = requests.post( url, headers = headers, data = json.dumps(metadata))
+            print "CREATE FOLDER",response.json()
+            print response.json()
+            return response.json()['mimeType']
 
-    def get_verification(self):
+    def get_verification(self): #phase 1 oauth2
         verification_params = {
             'response_type': 'code',
             'client_id': self.client_id,
             'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob:auto', #
-            'scope': 'https://www.googleapis.com/auth/drive.file',
+            'scope': 'https://www.googleapis.com/auth/drive', #'https://www.googleapis.com/auth/drive.file',
             'login_hint': self.getValue('google drive login')
         }
         response = requests.post('https://accounts.google.com/o/oauth2/v2/auth', params=verification_params)
@@ -529,7 +538,7 @@ class google_drive(external_service):
             print "verificated"
         
         
-    def get_authorization(self):
+    def get_authorization(self): #phase 2 oauth2
         if not self.verification:
             self.get_verification()
 
@@ -573,6 +582,13 @@ class google_drive(external_service):
         xForm_id += '.xml'
         fileId = self.getIdFromName(xForm_id)
         
+        folderId = self.createFolder(self.getValue('folder'))
+
+        metadata = {
+            "name": xForm_id,
+            "description": 'uploaded by QgisODK plugin'
+        }
+
         if fileId: 
             method = "PATCH"
             url = 'https://www.googleapis.com/upload/drive/v3/files/%s?uploadType=multipart' % fileId
@@ -580,19 +596,20 @@ class google_drive(external_service):
         else:
             method = "POST"
             url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart'
+            metadata['parents'] = [folderId]
             print "CREATE", xForm_id
         
         headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token']) }
-        
-        data = ('metadata',DataDict(name = xForm_id, description = 'uploaded by QgisODK plugin', parents = [{"id":'appDataFolder'}]),'application/json; charset=UTF-8')
+
+        #data = ('metadata',json.dumps(DataDict(name = xForm_id, description = 'uploaded by QgisODK plugin', parents = [folderId])),'application/json; charset=UTF-8')
+        data = ('metadata', json.dumps(metadata),'application/json; charset=UTF-8')
+
         file = (xForm,open(xForm,'r'),'text/xml')
         files = {'data':data, 'file':file }
         response = requests.request(method, url, headers = headers, files = files )
-        print response
-        print response.text
-        print response.json()
-        self.createFolder("ODK")
-        #self.getIdFromName("attivita-commerciali")
+        
+        #print response.json()
+        
         return response
         
         

@@ -198,6 +198,8 @@ class QgisODK:
         self.dlg.importCollectedDataButton.clicked.connect(self.importCollectedDataAction)
         self.dlg.ODKsaveButton.clicked.connect(self.ODKSaveLayerStateAction)
         self.dlg.ODKloadButton.clicked.connect(self.ODKLoadLayerStateAction)
+        self.dlg.addFieldButton.clicked.connect(self.addODKField)
+        self.dlg.removeFieldButton.clicked.connect(self.removeODKField)
 
 
     def unload(self):
@@ -297,6 +299,12 @@ class QgisODK:
 
     def addODKGroup(self):
         self.dlg.treeView.addGroup()
+
+    def addODKField(self):
+        self.dlg.treeView.addField()
+
+    def removeODKField(self):
+        self.dlg.treeView.removeField()
     
     def exportXForm(self, fileName = None):
         workDir = QgsProject.instance().readPath("./")
@@ -304,7 +312,8 @@ class QgisODK:
             fileName = QFileDialog().getSaveFileName(None, self.tr("Save XForm"), workDir, "*.xml")
         if QFileInfo(fileName).suffix() != "xml":
             fileName += ".xml"
-        json_out = self.dlg.treeView.renderToDict()
+        print 'service',self.settingsDlg.getServiceName()
+        json_out = self.dlg.treeView.renderToDict(service = self.settingsDlg.getServiceName())
         survey = create_survey_element_from_dict(json_out)
         warnings = []
         xform = survey.to_xml(validate=None, warnings=warnings)
@@ -333,6 +342,7 @@ class QgisODK:
         return xForm_id
 
     def exportToWebService(self):
+
         tmpXlsFileName = os.path.join(self.plugin_dir,"tmpodk."+self.settingsDlg.getExportExtension())
         exportMethod = getattr(self, self.settingsDlg.getExportMethod())
         xForm_id = exportMethod(fileName=tmpXlsFileName)

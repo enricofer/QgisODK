@@ -1,22 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<TS version="2.0" language="it" sourcelanguage="en">
+<TS version="2.0" language="it_IT" sourcelanguage="en">
 <context>
     <name>ChoicesDialog</name>
     <message>
         <location filename="../QgisODK_mod_dialog_choices.py" line="62"/>
         <source>Value/label table</source>
-        <translation>corrispondenze tra valore ed etichetta</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../QgisODK_mod_dialog_choices.py" line="63"/>
         <source>+</source>
-        <translation></translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../QgisODK_mod_dialog_choices.py" line="64"/>
         <source>-</source>
-        <translation></translation>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -24,7 +24,7 @@
     <message>
         <location filename="../QgisODK_mod_dialog_import.py" line="50"/>
         <source>Import collected Data</source>
-        <translation>Importa i dati raccolti</translation>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -32,190 +32,211 @@
     <message>
         <location filename="../fields_tree.py" line="106"/>
         <source>enabled</source>
-        <translation>abilitato</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../fields_tree.py" line="106"/>
         <source>label</source>
-        <translation>etichetta</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../fields_tree.py" line="106"/>
         <source>ODK type</source>
-        <translation>tipo ODK</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../fields_tree.py" line="106"/>
         <source>hint</source>
-        <translation>suggerimento</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../fields_tree.py" line="106"/>
         <source>required</source>
-        <translation>richiesto</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../fields_tree.py" line="106"/>
         <source>default</source>
-        <translation>default</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../fields_tree.py" line="106"/>
         <source>QVar_type</source>
-        <translation>tipo Qvariant</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../fields_tree.py" line="106"/>
         <source>widget</source>
-        <translation>widget</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../fields_tree.py" line="106"/>
         <source>choices</source>
-        <translation>scelte</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../fields_tree.py" line="106"/>
         <source>appearance</source>
-        <translation>aspetto</translation>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="../fields_tree.py" line="250"/>
+        <source>Remove Field</source>
+        <translation>Cancella campo</translation>
     </message>
 </context>
 <context>
     <name>QgisODK</name>
     <message>
-        <location filename="../QgisODK_mod.py" line="205"/>
+        <location filename="../QgisODK_mod.py" line="208"/>
         <source>&amp;QgisODK</source>
-        <translation></translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../QgisODK_mod.py" line="176"/>
+        <location filename="../QgisODK_mod.py" line="177"/>
         <source>QgisODK</source>
-        <translation></translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../QgisODK_mod.py" line="184"/>
+        <location filename="../QgisODK_mod.py" line="185"/>
         <source>export ODK form</source>
-        <translation>Esporta il layer come modulo ODK</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../QgisODK_mod.py" line="220"/>
+        <location filename="../QgisODK_mod.py" line="223"/>
         <source>Save QgisODK project</source>
-        <translation>Salva il progetto ODK</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../QgisODK_mod.py" line="229"/>
+        <location filename="../QgisODK_mod.py" line="232"/>
         <source>Load QgisODK project</source>
-        <translation>Carica un progetto ODK</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../QgisODK_mod.py" line="308"/>
+        <location filename="../QgisODK_mod.py" line="314"/>
         <source>Save XForm</source>
-        <translation>Salva XForm</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../QgisODK_mod.py" line="319"/>
+        <location filename="../QgisODK_mod.py" line="330"/>
         <source>Save XlsForm</source>
-        <translation>Salva XlsForm</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../QgisODK_mod.py" line="344"/>
+        <location filename="../QgisODK_mod.py" line="422"/>
         <source>QgisODK plugin</source>
-        <comment>error saving form %s, %s.</comment>
-        <translation>Errore di salvataggio del modulo %s, %s</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../QgisODK_mod.py" line="348"/>
-        <source>QgisODK plugin</source>
-        <comment>form successfully exported</comment>
-        <translation>Modulo salvato con successo</translation>
+        <location filename="../QgisODK_mod.py" line="356"/>
+        <source>error saving form %s, %s.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../QgisODK_mod.py" line="410"/>
-        <source>QgisODK plugin</source>
-        <comment>error loading csv table %s, %s.</comment>
-        <translation>Errore di caricamento dei dati raccolti %s, %s</translation>
+        <location filename="../QgisODK_mod.py" line="360"/>
+        <source>form successfully exported</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../QgisODK_mod.py" line="422"/>
+        <source>error loading csv table %s, %s.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>QgisODKDialogBase</name>
     <message>
-        <location filename="../QgisODK_mod_dialog_base.py" line="98"/>
-        <source>QgisODK</source>
-        <translation></translation>
-    </message>
-    <message>
-        <location filename="../QgisODK_mod_dialog_base.py" line="99"/>
-        <source>select Layer to Export to Open Data Kit format</source>
-        <translation>Seleziona il layer da esportare come modulo ODK (Open Data Kit)</translation>
-    </message>
-    <message>
-        <location filename="../QgisODK_mod_dialog_base.py" line="100"/>
-        <source>save Open Data Kit project</source>
-        <translation>salva il progetto ODK</translation>
-    </message>
-    <message>
-        <location filename="../QgisODK_mod_dialog_base.py" line="101"/>
-        <source>S</source>
-        <translation></translation>
-    </message>
-    <message>
-        <location filename="../QgisODK_mod_dialog_base.py" line="102"/>
-        <source>load Open Data Kit Project</source>
-        <translation>carica il progetto ODK</translation>
-    </message>
-    <message>
-        <location filename="../QgisODK_mod_dialog_base.py" line="103"/>
-        <source>L</source>
-        <translation></translation>
-    </message>
-    <message>
-        <location filename="../QgisODK_mod_dialog_base.py" line="104"/>
-        <source>Open Data Kit plugin general settings</source>
-        <translation>Settaggi generali del plugin</translation>
-    </message>
-    <message>
-        <location filename="../QgisODK_mod_dialog_base.py" line="105"/>
-        <source>...</source>
-        <translation></translation>
-    </message>
-    <message>
         <location filename="../QgisODK_mod_dialog_base.py" line="106"/>
-        <source>Add Group</source>
-        <translation>Aggiungi gruppo</translation>
+        <source>QgisODK</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../QgisODK_mod_dialog_base.py" line="107"/>
-        <source>export to XlsForm</source>
-        <translation>esporta come XlsForm</translation>
+        <source>select Layer to Export to Open Data Kit format</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../QgisODK_mod_dialog_base.py" line="108"/>
-        <source>export to XForm</source>
-        <translation>esporta come XFrorm</translation>
+        <source>save Open Data Kit project</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../QgisODK_mod_dialog_base.py" line="109"/>
-        <source>export to Web Service</source>
-        <translation>esporta a servizio web</translation>
+        <source>S</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../QgisODK_mod_dialog_base.py" line="110"/>
-        <source>import collected data</source>
-        <translation>importa i dati raccolti</translation>
+        <source>load Open Data Kit Project</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../QgisODK_mod_dialog_base.py" line="111"/>
+        <source>L</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../QgisODK_mod_dialog_base.py" line="112"/>
+        <source>Open Data Kit plugin general settings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../QgisODK_mod_dialog_base.py" line="113"/>
+        <source>...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../QgisODK_mod_dialog_base.py" line="114"/>
+        <source>Add Group</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../QgisODK_mod_dialog_base.py" line="115"/>
+        <source>Add Field</source>
+        <translation>Aggiungi Campo</translation>
+    </message>
+    <message>
+        <location filename="../QgisODK_mod_dialog_base.py" line="116"/>
+        <source>Remove Field</source>
+        <translation>Rimuovi campo</translation>
+    </message>
+    <message>
+        <location filename="../QgisODK_mod_dialog_base.py" line="117"/>
+        <source>export to XlsForm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../QgisODK_mod_dialog_base.py" line="118"/>
+        <source>export to XForm</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../QgisODK_mod_dialog_base.py" line="119"/>
+        <source>export to Web Service</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../QgisODK_mod_dialog_base.py" line="120"/>
+        <source>import collected data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../QgisODK_mod_dialog_base.py" line="121"/>
         <source>Cancel</source>
-        <translation>Cancella</translation>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>QgisODKImportCollectedData</name>
     <message>
-        <location filename="../QgisODK_mod_dialog.py" line="170"/>
+        <location filename="../QgisODK_mod_dialog.py" line="162"/>
         <source>QgisODK plugin</source>
-        <comment>error loading csv table %s, %s.</comment>
-        <translation>Errore di caricamento dei dati raccolti %s, %s</translation>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../QgisODK_mod_dialog.py" line="162"/>
+        <source>error loading csv table %s, %s.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -223,17 +244,17 @@
     <message>
         <location filename="../QgisODK_mod_dialog_services.py" line="68"/>
         <source>ODK Services</source>
-        <translation>Servizi ODK</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../QgisODK_mod_dialog_services.py" line="69"/>
         <source>Tab 1</source>
-        <translation></translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../QgisODK_mod_dialog_services.py" line="70"/>
         <source>Download attachments</source>
-        <translation>Scarica localmente i file allegati al modulo</translation>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 </TS>

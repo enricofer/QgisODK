@@ -24,7 +24,7 @@
 from PyQt4.QtCore import Qt, QVariant, QSettings, QTranslator, qVersion, QCoreApplication
 from PyQt4.QtGui import QTableWidget, QTableWidgetItem, QLineEdit, QComboBox, QCheckBox, QAbstractItemView
 from PyQt4.QtGui import QTreeView, QStandardItem, QStandardItemModel, QItemSelectionModel, QItemDelegate
-from PyQt4.QtGui import QPen, QBrush, QColor
+from PyQt4.QtGui import QPen, QBrush, QColor, QMessageBox
 
 from qgis.core import QGis
 
@@ -218,6 +218,40 @@ class ODK_fields(QTreeView):
             self.setCurrentIndex(model.indexFromItem(group_item))
         return group_item
 
+    def addField(self, name = None):
+        model = self.model()
+        field_item = fieldItem(name or 'New Field')
+        field_item.setFlags(Qt.ItemIsSelectable|Qt.ItemIsEditable)
+        field_item.setEnabled(True)
+        field_item.setDropEnabled(False)
+        field_item.setDragEnabled(True)
+        field_item.setCheckable(True)
+        field_item.setCheckState(Qt.Checked)
+        field_item.addFieldDef({
+            "fieldName":'',
+            "fieldLabel":'',
+            "fieldType":'select type',
+            "fieldHint":'',
+            "fieldDefault":'',
+            "fieldWidget":'',
+            "fieldChoices":{},
+            "fieldEnabled":True,
+            "fieldRequired":None,
+            "fieldQtype": "UserType"
+        })
+
+        model.appendRow([field_item])
+        if not name:
+            self.setCurrentIndex(model.indexFromItem(field_item))
+            self.setExpanded(model.indexFromItem(field_item),True)
+        return field_item
+
+    def removeField(self):
+        resp = QMessageBox().question(None,self.tr("Remove Field"), "Do you really want to remove current field?", QMessageBox.Yes, QMessageBox.No)
+        if resp == QMessageBox.Yes:
+            idx = self.currentIndex()
+            self.model().removeRow(idx.row(),idx.parent())
+
     def backup(self):
         model = self.model()
         fieldsState = []
@@ -278,7 +312,7 @@ class ODK_fields(QTreeView):
         return self.tableDef
 
 
-    def renderToDict(self,title = None):
+    def renderToDict(self,title = None, service = None):
     
         if not title:
             title = self.layerName
@@ -288,8 +322,10 @@ class ODK_fields(QTreeView):
             childRow = model.item(count)
             if childRow.rowCount() > 0 and childRow.checkState() == Qt.Checked: #exclude void groups and not enabled
                 probeSubChildRow = model.data(model.index(0,2,childRow.index()),Qt.DisplayRole)
+                if probeSubChildRow == 'select type': #exclude new fields not yet well formed
+                    continue
                 if probeSubChildRow: #is fieldItem
-                    dict = self.renderItemStructure(childRow.index(), output = 'dict')
+                    dict = self.renderItemStructure(childRow.index(), output = 'dict', service = service)
                 else: #is groupItem
                     dict = self.renderGroupStructure(childRow.index(), output = 'dict')
                 if dict:
@@ -315,7 +351,7 @@ class ODK_fields(QTreeView):
             "settings":[['form_title','form_id']]
         }
 
-    def renderItemStructure(self,itemIndex, output = 'dict'):
+    def renderItemStructure(self,itemIndex, output = 'dict', service = None):
         '''
         procedure to build standard item dict
         '''
@@ -325,6 +361,9 @@ class ODK_fields(QTreeView):
         for count in range (0,len(defOrder)):
             if count == 0:
                 fieldDefFromModel['fieldName'] = itemIndex.data(Qt.DisplayRole)
+                print "service",service
+                if service == "google_drive":
+                    fieldDefFromModel['fieldName'] = fieldDefFromModel['fieldName'].replace('_','-')
             else:
                 fieldInd = model.index(0,count,itemIndex)
                 if defOrder[count] == 'fieldRequired':
@@ -385,7 +424,7 @@ class ODK_fields(QTreeView):
             return fieldDefFromModel
 
 
-    def renderGroupStructure(self,groupIndex, output = 'dict'):
+    def renderGroupStructure(self,groupIndex, output = 'dict', service = None):
         model = self.model()
         groupLabel = model.itemFromIndex(groupIndex).data(Qt.DisplayRole)
         groupName = slugify(groupLabel)
@@ -394,7 +433,7 @@ class ODK_fields(QTreeView):
             self.tableDef['survey'].append(['begin group',groupName,groupLabel,None,None,None,None,"field-list",None,None,None,None])
         for count in range (0, model.itemFromIndex(groupIndex).rowCount()):
             childRow = model.itemFromIndex(groupIndex.child(count,0))
-            itemStructure = self.renderItemStructure(childRow.index(), output = output)
+            itemStructure = self.renderItemStructure(childRow.index(), output = output, service = service)
             itemStructure['fieldEnabled'] = childRow.checkState() == Qt.Checked
             childrenList.append(itemStructure)
         if groupName != 'metadata' and output == 'table':
@@ -445,6 +484,8 @@ class ODKDelegate(QItemDelegate):
                 combobox_items = ['geopoint','geoshape','geotrace']
             elif content in ['select one']:
                 combobox_items = ['select one', QVariantToODKtype(q_type)]
+            elif content in ['select type']:
+                combobox_items = ['text','decimal','integer','date','time','datetime','geopoint','geoshape','geotrace','image','barcode','audio','video','select one']
             else:
                 combobox_items = [content,'select one']
             editorQWidget.addItems(combobox_items)
@@ -537,7 +578,7 @@ class fieldItem(QStandardItem):
 
 
     def getODKType(self,field):
-        if field['fieldType'] in ['geopoint','geoshape','geotrace','start', 'end', 'today', 'deviceid', 'subscriberid', 'simserial', 'phonenumber']:
+        if field['fieldType'] in ['select type','geopoint','geoshape','geotrace','start', 'end', 'today', 'deviceid', 'subscriberid', 'simserial', 'phonenumber']:
             field['fieldQtype'] = "UserType"
             return field['fieldType']
         field['fieldQtype'] = QVariant.typeToName(field['fieldType'])

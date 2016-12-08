@@ -1,0 +1,163 @@
+<!DOCTYPE QPH>
+<QPH sourcelanguage="en" language="it">
+<phrase>
+    <source>Value/label table</source>
+    <target>corrispondenze tra valore ed etichetta</target>
+</phrase>
+<phrase>
+    <source>Import collected Data</source>
+    <target>Importa i dati raccolti</target>
+</phrase>
+<phrase>
+    <source>enabled</source>
+    <target>abilitato</target>
+</phrase>
+<phrase>
+    <source>&amp;QgisODK</source>
+    <target></target>
+</phrase>
+<phrase>
+    <source>QgisODK</source>
+    <target></target>
+</phrase>
+<phrase>
+    <source>QgisODK plugin</source>
+    <target>Errore di caricamento dei dati raccolti %s, %s</target>
+</phrase>
+<phrase>
+    <source>ODK Services</source>
+    <target>Servizi ODK</target>
+</phrase>
+<phrase>
+    <source>Download attachments</source>
+    <target>Scarica localmente i file allegati al modulo</target>
+</phrase>
+<phrase>
+    <source>select Layer to Export to Open Data Kit format</source>
+    <target>Seleziona il layer da esportare come modulo ODK (Open Data Kit)</target>
+</phrase>
+<phrase>
+    <source>save Open Data Kit project</source>
+    <target>salva il progetto ODK</target>
+</phrase>
+<phrase>
+    <source>load Open Data Kit Project</source>
+    <target>carica il progetto ODK</target>
+</phrase>
+<phrase>
+    <source>Open Data Kit plugin general settings</source>
+    <target>Settaggi generali del plugin</target>
+</phrase>
+<phrase>
+    <source>Add Group</source>
+    <target>Aggiungi gruppo</target>
+</phrase>
+<phrase>
+    <source>export to XlsForm</source>
+    <target>esporta come XlsForm</target>
+</phrase>
+<phrase>
+    <source>export to XForm</source>
+    <target>esporta come XFrorm</target>
+</phrase>
+<phrase>
+    <source>export to Web Service</source>
+    <target>esporta a servizio web</target>
+</phrase>
+<phrase>
+    <source>import collected data</source>
+    <target>importa i dati raccolti</target>
+</phrase>
+<phrase>
+    <source>Cancel</source>
+    <target>Cancella</target>
+</phrase>
+<phrase>
+    <source>export ODK form</source>
+    <target>Esporta il layer come modulo ODK</target>
+</phrase>
+<phrase>
+    <source>Save QgisODK project</source>
+    <target>Salva il progetto ODK</target>
+</phrase>
+<phrase>
+    <source>Load QgisODK project</source>
+    <target>Carica un progetto ODK</target>
+</phrase>
+<phrase>
+    <source>Save XForm</source>
+    <target>Salva XForm</target>
+</phrase>
+<phrase>
+    <source>Save XlsForm</source>
+    <target>Salva XlsForm</target>
+</phrase>
+<phrase>
+    <source>QgisODK plugin</source>
+    <target>Errore di salvataggio del modulo %s, %s</target>
+</phrase>
+<phrase>
+    <source>QgisODK plugin</source>
+    <target>Modulo salvato con successo</target>
+</phrase>
+<phrase>
+    <source>QgisODK plugin</source>
+    <target>Errore di caricamento dei dati raccolti %s, %s</target>
+</phrase>
+<phrase>
+    <source>enabled</source>
+    <target>abilitato</target>
+</phrase>
+<phrase>
+    <source>label</source>
+    <target>etichetta</target>
+</phrase>
+<phrase>
+    <source>ODK type</source>
+    <target>tipo ODK</target>
+</phrase>
+<phrase>
+    <source>hint</source>
+    <target>suggerimento</target>
+</phrase>
+<phrase>
+    <source>required</source>
+    <target>richiesto</target>
+</phrase>
+<phrase>
+    <source>default</source>
+    <target>default</target>
+</phrase>
+<phrase>
+    <source>QVar_type</source>
+    <target>tipo Qvariant</target>
+</phrase>
+<phrase>
+    <source>widget</source>
+    <target>widget</target>
+</phrase>
+<phrase>
+    <source>choices</source>
+    <target>scelte</target>
+</phrase>
+<phrase>
+    <source>appearance</source>
+    <target>aspetto</target>
+</phrase>
+<phrase>
+    <source>Import collected Data</source>
+    <target>Importa i dati raccolti</target>
+</phrase>
+<phrase>
+    <source>Remove Field</source>
+    <target>Cancella campo</target>
+</phrase>
+<phrase>
+    <source>Add Field</source>
+    <target>Aggiungi Campo</target>
+</phrase>
+<phrase>
+    <source>Remove Field</source>
+    <target>Rimuovi campo</target>
+</phrase>
+</QPH>

@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'Z:\dev\qgisODK\QgisODK_mod_dialog_base.ui'
 #
-# Created: Fri Dec 02 10:42:07 2016
+# Created: Wed Dec 07 14:33:14 2016
 #      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -27,10 +27,11 @@ except AttributeError:
 class Ui_QgisODKDialogBase(object):
     def setupUi(self, QgisODKDialogBase):
         QgisODKDialogBase.setObjectName(_fromUtf8("QgisODKDialogBase"))
-        QgisODKDialogBase.resize(834, 368)
+        QgisODKDialogBase.resize(881, 368)
         self.verticalLayout = QtGui.QVBoxLayout(QgisODKDialogBase)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.horizontalLayout_2 = QtGui.QHBoxLayout()
+        self.horizontalLayout_2.setSpacing(2)
         self.horizontalLayout_2.setObjectName(_fromUtf8("horizontalLayout_2"))
         self.layersComboBox = QtGui.QComboBox(QgisODKDialogBase)
         self.layersComboBox.setMinimumSize(QtCore.QSize(200, 0))
@@ -68,10 +69,17 @@ class Ui_QgisODKDialogBase(object):
         self.treeView.setObjectName(_fromUtf8("treeView"))
         self.verticalLayout.addWidget(self.treeView)
         self.horizontalLayout = QtGui.QHBoxLayout()
+        self.horizontalLayout.setSpacing(2)
         self.horizontalLayout.setObjectName(_fromUtf8("horizontalLayout"))
         self.addGroupButton = QtGui.QPushButton(QgisODKDialogBase)
         self.addGroupButton.setObjectName(_fromUtf8("addGroupButton"))
         self.horizontalLayout.addWidget(self.addGroupButton)
+        self.addFieldButton = QtGui.QPushButton(QgisODKDialogBase)
+        self.addFieldButton.setObjectName(_fromUtf8("pushButton"))
+        self.horizontalLayout.addWidget(self.addFieldButton)
+        self.removeFieldButton = QtGui.QPushButton(QgisODKDialogBase)
+        self.removeFieldButton.setObjectName(_fromUtf8("pushButton_2"))
+        self.horizontalLayout.addWidget(self.removeFieldButton)
         spacerItem1 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.horizontalLayout.addItem(spacerItem1)
         self.exportXlsFormButton = QtGui.QPushButton(QgisODKDialogBase)
@@ -104,6 +112,8 @@ class Ui_QgisODKDialogBase(object):
         self.settingsToolButton.setToolTip(_translate("QgisODKDialogBase", "Open Data Kit plugin general settings", None))
         self.settingsToolButton.setText(_translate("QgisODKDialogBase", "...", None))
         self.addGroupButton.setText(_translate("QgisODKDialogBase", "Add Group", None))
+        self.addFieldButton.setText(_translate("QgisODKDialogBase", "Add Field", None))
+        self.removeFieldButton.setText(_translate("QgisODKDialogBase", "Remove Field", None))
         self.exportXlsFormButton.setText(_translate("QgisODKDialogBase", "export to XlsForm", None))
         self.exportXFormButton.setText(_translate("QgisODKDialogBase", "export to XForm", None))
         self.exportToWebServiceButton.setText(_translate("QgisODKDialogBase", "export to Web Service", None))
