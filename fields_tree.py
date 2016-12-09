@@ -361,7 +361,6 @@ class ODK_fields(QTreeView):
         for count in range (0,len(defOrder)):
             if count == 0:
                 fieldDefFromModel['fieldName'] = itemIndex.data(Qt.DisplayRole)
-                print "service",service
                 if service == "google_drive":
                     fieldDefFromModel['fieldName'] = fieldDefFromModel['fieldName'].replace('_','-')
             else:

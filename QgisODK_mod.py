@@ -71,7 +71,7 @@ class QgisODK:
 
         # Create the dialog (after translation) and keep reference
         self.dlg = QgisODKDialog()
-        self.settingsDlg = QgisODKServices()
+        self.settingsDlg = QgisODKServices(self)
         self.importCollectedData = QgisODKImportCollectedData(self)
 
         # Declare instance attributes
@@ -218,23 +218,29 @@ class QgisODK:
         self.settingsDlg.raise_()
 
     def ODKSaveLayerStateAction(self):
-        fieldsState = self.dlg.treeView.backup()
+
+        backupDict = {
+            'fieldsState': self.dlg.treeView.backup(),
+            'settings': self.settingsDlg.exportSettings()
+        }
+
         workDir = QgsProject.instance().readPath("./")
         fileName = QFileDialog().getSaveFileName(None, self.tr("Save QgisODK project"), workDir, "*.json");
         if fileName:
             if QFileInfo(fileName).suffix() != "json":
                 fileName += ".json"
             with open(fileName, "w") as json_file:
-                json.dump(fieldsState, json_file)
+                json.dump(backupDict, json_file)
 
     def ODKLoadLayerStateAction(self):
         workDir = QgsProject.instance().readPath("./")
         fileName = QFileDialog().getOpenFileName(None, self.tr("Load QgisODK project"), workDir, "*.json");
         if fileName:
             with open(fileName, "r") as json_file:
-                fieldsState = json.load(json_file)
+                restoreDict = json.load(json_file)
             ODKProjectName = QFileInfo(fileName).baseName()
-            self.dlg.treeView.recover(fieldsState, ODKProjectName)
+            self.settingsDlg.importSettings(restoreDict['settings'])
+            self.dlg.treeView.recover(restoreDict['fieldsState'], ODKProjectName)
             self.dlg.setWindowTitle("QgisODK - " + ODKProjectName)
             self.dlg.layersComboBox.setCurrentIndex(0)
 
@@ -245,7 +251,7 @@ class QgisODK:
         self.dlg.raise_()
 
     def importCollectedDataAction(self):
-        self.importCollectedData.show()
+        self.settingsDlg.getLayer()
 
     def contextOdkout(self):
         self.populateVectorLayerCombo()

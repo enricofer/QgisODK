@@ -25,13 +25,17 @@ import os
 import requests
 import json
 import time
-import webbrowser
+import re
+import base64
+import StringIO
+import csv
 
 from PyQt4 import QtGui, uic
 from PyQt4.QtGui import QTableWidget, QWidget, QTableWidgetItem, QSizePolicy, QMessageBox
 from PyQt4.QtCore import Qt, QSettings, QSize, QSettings, QTranslator, qVersion, QCoreApplication, QTimer
 from qgis.core import QgsProject, QgsMapLayerRegistry, QgsNetworkAccessManager
 from qgis.gui import QgsMessageBar
+from email.mime.text import MIMEText
 
 from QgisODK_mod_dialog_base import Ui_QgisODKDialogBase
 from QgisODK_mod_dialog_services import Ui_ServicesDialog
@@ -97,9 +101,15 @@ class authBrowser(QtGui.QDialog, Ui_AuthBrowser):
         else:
             self.auth_code = None
 
+    def patchLoginHint(self,loginHint):
+        frame = self.webView.page().mainFrame()
+        frame.evaluateJavaScript('document.getElementById("Email").value = "%s"' % loginHint)
+
+
     @staticmethod
-    def getCode(html, title=""):
+    def getCode(html,loginHint, title=""):
         dialog = authBrowser(html)
+        dialog.patchLoginHint(loginHint)
         result = dialog.exec_()
         dialog.timer.stop()
         if result == QtGui.QDialog.Accepted:
@@ -113,7 +123,7 @@ class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
     def __init__(self, module, parent = None):
         """Constructor."""
         self.iface = module.iface
-        self.settingsDlg = module.settingsDlg
+        self.module = module
         super(QgisODKImportCollectedData, self).__init__(parent)
         # Set up the user interface from Designer.
         # After setupUI you can access any designer object by doing
@@ -141,6 +151,7 @@ class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
         return QCoreApplication.translate('QgisODK', message)
 
     def show(self):
+        self.settingsDlg = self.module.settingsDlg
         availableData,response = self.settingsDlg.getAvailableDataCollections()
         if availableData:
             self.availableDataList.clear()
@@ -149,7 +160,7 @@ class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
         self.raise_()
         
     def accept(self):
-        geojsonDict,response = self.settingsDlg.getLayer(self.availableDataList.selectedItems()[0].text())
+        geojsonDict,response = self.settingsDlg.getLayerByID(self.availableDataList.selectedItems()[0].text())
         if geojsonDict and response.status_code == requests.codes.ok:
             workDir = QgsProject.instance().readPath("./")
             geoJsonFileName = self.availableDataList.selectedItems()[0].text()+'_odk-'+time.strftime("%d-%m-%Y")+'.geojson'
@@ -172,7 +183,7 @@ class QgisODKServices(QtGui.QDialog, Ui_ServicesDialog):
     ]
     
 
-    def __init__(self, parent = None):
+    def __init__(self,module, parent = None):
         """Constructor."""
         super(QgisODKServices, self).__init__(parent)
         # Set up the user interface from Designer.
@@ -181,6 +192,7 @@ class QgisODKServices(QtGui.QDialog, Ui_ServicesDialog):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
+        self.module = module
         for numServices in range (1,len(self.services)):
             container = QWidget()
             container.resize(QSize(310,260))
@@ -195,6 +207,7 @@ class QgisODKServices(QtGui.QDialog, Ui_ServicesDialog):
         S = QSettings()
         currentService = S.value("qgisodk/", defaultValue =  "0")
         self.tabServices.setCurrentIndex(int(currentService))
+        self.importCollectedData = QgisODKImportCollectedData(self.module)
         
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
@@ -225,16 +238,42 @@ class QgisODKServices(QtGui.QDialog, Ui_ServicesDialog):
     def sendForm(self, xForm_id, xForm):
         response = self.getCurrentService().sendForm(xForm_id, xForm)
         return response
-        
-    def getLayer(self,layerName):
+
+    def getLayer(self):
+        self.getCurrentService().getLayer()
+
+    def getLayerByID(self,layerName):
         geojsonDict,response = self.getCurrentService().getLayer(slugify(layerName))
         return  geojsonDict,response
+
+    def exportSettings(self):
+        settings = {}
+        for i in range(0, self.tabServices.count()):
+            service_settings = self.tabServices.widget(i).children()[0]
+            settings[self.tabServices.tabText(i)] = service_settings.getStructure()
+        settings['download_attachments'] = self.attachmentsCheckBox.isChecked()
+        return settings
+
+    def importSettings(self,settings):
+        for service, params in settings.iteritems():
+            for i in range(0, self.tabServices.count()):
+                if self.tabServices.tabText(i) == service:
+                    service_settings = self.tabServices.widget(i).children()[0]
+                    service_settings.applyStructure(params)
+        if settings['download_attachments']:
+            self.attachmentsCheckBox.setChecked(True)
+        else:
+            self.attachmentsCheckBox.setChecked(False)
+
 
 class external_service(QTableWidget):
     
     def __init__(self, parent, parameters):
         super(external_service, self).__init__(parent)
         self.parent = parent
+        self.module = parent.parent().parent().parent().parent()
+        self.iface = parent.parent().parent().parent().module.iface
+
         self.resize(QSize(310,260))
         self.setColumnCount(2)
         self.setColumnWidth(0, 152)
@@ -271,11 +310,14 @@ class external_service(QTableWidget):
         for row in range (0,self.rowCount()):
             S.setValue("qgisodk/%s/%s/" % (self.service_id,self.item(row,0).text()),self.item(row,1).text())
         
-    def getValue(self,key):
+    def getValue(self,key, newValue = None):
         if key == 'download_attachments':
             return self.parent.parent().parent().parent().attachmentsCheckBox.isChecked()
         for row in range (0,self.rowCount()):
             if self.item(row,0).text() == key:
+                if newValue:
+                    self.item(row, 1).setText(newValue)
+                    self.setup() #store to settings
                 return self.item(row,1).text()
         raise AttributeError("key not found: " + key)
     
@@ -320,6 +362,35 @@ class external_service(QTableWidget):
             return proxyDict
         else:
             return None
+
+    def guessGeomType(self,geom):
+        coordinates = geom.split(';')
+        firstCoordinate = coordinates[0].strip().split(' ')
+        coordinatesList = []
+        for coordinate in coordinates:
+            decodeCoord = coordinate.strip().split(' ')
+            if len(decodeCoord) == 4:
+                coordinatesList.append(decodeCoord)
+        if len(firstCoordinate) != 4:
+            return "invalid", None
+        if len(coordinates) == 1:
+            return "Point", coordinatesList #geopoint
+        if coordinates[-1] == '' and coordinatesList[0][0] == coordinatesList[-2][0] and coordinatesList[0][1] == coordinatesList[-2][1]:
+            return "Polygon", coordinatesList #geoshape #geotrace
+        else:
+            return "LineString", coordinatesList
+
+    def getStructure(self):
+        structure = []
+        for row in range (0,self.rowCount()):
+            structure.append([self.item(row,0).text(),self.item(row,1).text()])
+        return structure
+
+    def applyStructure(self,structure):
+        for param in structure:
+            self.getValue(param[0], newValue=param[1])
+        self.setup
+
 
 class ona(external_service):
     parameters = [
@@ -368,22 +439,13 @@ class ona(external_service):
             response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")))
             return response
 
-    def guessGeomType(self,geom):
-        coordinates = geom.split(';')
-        firstCoordinate = coordinates[0].split(' ')
-        coordinatesList = []
-        for coordinate in coordinates:
-            coordinatesList.append(coordinate.split(' '))
-        if len(firstCoordinate) != 4:
-            return "invalid", None
-        if len(coordinates) == 1:
-            return "Point", coordinatesList #geopoint
-        if coordinates[-1] == '' and coordinatesList[0][0] == coordinatesList[-2][0] and coordinatesList[0][1] == coordinatesList[-2][1]:
-            return "Polygon", coordinatesList #geoshape
-        else:
-            return "LineString", coordinatesList #geotrace
+    def getLayer(self):
+        '''
+        interactive table selection
+        '''
+        self.parent.importCollectedData.show()
 
-    def getLayer(self,xForm_id):
+    def getLayerByID(self,xForm_id):
         remoteResponse = self.getJSON(xForm_id)
         if remoteResponse.status_code == requests.codes.ok:
             remoteData = remoteResponse.json()
@@ -451,8 +513,7 @@ class ona(external_service):
                         feature["properties"][fieldKey] = fieldValue
                         
                 geojson["features"].append(feature)
-                
-            print 
+
             return geojson, remoteResponse
         else:
             return None, remoteResponse
@@ -461,16 +522,77 @@ class google_drive(external_service):
     parameters = [
         ["id","google_drive"],
         ["folder",""],
+        ["data collection table ID", ""],
         ["google drive login", ""],
-        ["google sheet upload", ""]
+        ["data collectors emails", ""],
+        ["notifications?(YES/NO)", "YES"]
     ]
-    
+
+
     def __init__(self, parent):
         super(google_drive, self).__init__(parent,self.parameters)
         self.authorization = None
         self.verification = None
         self.client_id = "88596974458-r5dckj032ton00idb87c4oivqq2k1pks.apps.googleusercontent.com"
         self.client_secret = "c6qKnhBdVxkPMH88lHf285hQ"
+        self.getCollectors()
+
+    def getCollectors(self):
+        collectorsFromParams = self.getValue("data collectors emails").split(' ')
+        self.collectors = []
+        email_regex = re.compile(r"^\w+([-+.']\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$")
+        for collector in collectorsFromParams:
+            if email_regex.match(collector):
+                self.collectors.append(collector)
+
+    def send_message(self, FROM , TO, SUBJECT,  MSG):
+        if not self.authorization:
+            self.get_authorization()
+
+        # create a message to send
+        message = MIMEText(MSG)
+        message['to'] = TO
+        message['from'] = FROM
+        message['subject'] = SUBJECT
+        body = {'raw': base64.b64encode(message.as_string())}
+
+        url = 'https://www.googleapis.com/gmail/v1/users/me/messages/send'
+        headers = {'Authorization': 'Bearer {}'.format(self.authorization['access_token']), 'Content-Type': 'application/json'}
+
+        response = requests.post(url,headers = headers, data = json.dumps(body))
+        print "--GMAIL--"
+        print message
+        print response.json()
+        print response
+        print "--GMAIL--"
+
+    def notify(self,XFormName,XFormFolder,collectTableId,collectTableName):
+        if self.getValue('notifications?(YES/NO)').upper() == 'YES':
+            message = '''
+You are receiving this automatically generated message because you are taking part of a Open Data Kit survey
+
+Your ODK Collect app has to be configured with the following parameters:
+a new form called %s has been uploaded in the folder %s shared with your Google Drive
+The Data Collection table is named %s and has the following uri:
+
+https://docs.google.com/spreadsheets/d/%s/edit
+            ''' % (XFormName, XFormFolder,collectTableName,collectTableId )
+            for email in self.collectors:
+                self.send_message(self.getValue('google drive login'),email,'ODK survey notification', message)
+
+
+    def shareFileWithCollectors(self, id, role = 'reader', type = 'user'):
+        url = 'https://www.googleapis.com/drive/v3/files/%s/permissions' % id
+        headers = {'Authorization': 'Bearer {}'.format(self.authorization['access_token']), 'Content-Type': 'application/json'}
+        for email in self.collectors:
+            metadata = {
+                "role": role,
+                "type": type,
+                "emailAddress": email
+            }
+            response = requests.post(url, headers=headers, data=json.dumps(metadata))
+            print email,response.status_code,response.json()
+
 
     def getExportMethod(self):
         return 'exportXForm'
@@ -500,41 +622,59 @@ class google_drive(external_service):
                     return files[0]['id']
             else:
                 return None
-        
 
-    def createFolder(self,folderName):
+    def getMetadataFromID(self,fileID):
         if not self.authorization:
             self.get_authorization()
-        if folderName == '':
+        url = 'https://www.googleapis.com/drive/v3/files/'+fileID
+        headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token'])}
+        response = requests.get( url, headers = headers)
+        print "getNameFromID", response
+        print "getNameFromID", response.json()
+        if response.status_code == requests.codes.ok:
+            return response.json()
+        else:
+            return None
+        
+
+    def createNew(self, name, mimeType, parentsId = None):
+        if not self.authorization:
+            self.get_authorization()
+        if mimeType == 'application/vnd.google-apps.folder' and name == '':
             return 'root'
-        folderId = self.getIdFromName(folderName, mimeType = 'application/vnd.google-apps.folder')
-        print "FOLDER:", folderName, folderId
-        if folderId:
+        foundId = self.getIdFromName(name, mimeType = mimeType)
+        print "New:", name, foundId
+        if foundId:
             print "trovato"
-            return folderId
+            return foundId
         else:
             url = 'https://www.googleapis.com/drive/v3/files'
             headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token']), 'Content-Type': 'application/json'}
             metadata = {
-                "name": folderName,
-                "mimeType": 'application/vnd.google-apps.folder'
+                "name": name,
+                "mimeType": mimeType
             }
+            if parentsId:
+                metadata['parents'] = [parentsId]
             response = requests.post( url, headers = headers, data = json.dumps(metadata))
-            print "CREATE FOLDER",response.json()
             print response.json()
-            return response.json()['mimeType']
+            if response.status_code != 200 or 'error' in response.json():
+                print "error"
+                return None
+            print "CREATEd NEW",response.json()
+            return response.json()['id']
 
     def get_verification(self): #phase 1 oauth2
         verification_params = {
             'response_type': 'code',
             'client_id': self.client_id,
             'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob:auto', #
-            'scope': 'https://www.googleapis.com/auth/drive', #'https://www.googleapis.com/auth/drive.file',
+            'scope': 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.send', #'https://www.googleapis.com/auth/drive.file',
             'login_hint': self.getValue('google drive login')
         }
         response = requests.post('https://accounts.google.com/o/oauth2/v2/auth', params=verification_params)
         if response.status_code == requests.codes.ok:
-            self.verification = authBrowser.getCode(response.text)
+            self.verification = authBrowser.getCode(response.text, self.getValue('google drive login'))
             print "verificated"
         
         
@@ -573,7 +713,113 @@ class google_drive(external_service):
 
         else:
             print response.text
-        
+
+    def getLayer(self):
+        if self.getValue("data collection table ID") == '':
+            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"),
+                                                self.tr("undefined data collect table ID"),
+                                                level=QgsMessageBar.CRITICAL, duration=6)
+            return
+
+        if not self.authorization:
+            self.get_authorization()
+
+        remoteData,response = self.getTable()
+        print "GETLAYER:",response, remoteData
+        geojson = {
+            "type": "FeatureCollection",
+            "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
+            "features": []
+        }
+        for record in remoteData:
+            if 'GEOMETRY' in record:
+                geomType, geomCoordinates = self.guessGeomType(record['GEOMETRY'])
+                feature = {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {
+                        "type": geomType
+                    }
+                }
+
+                # build geojson geometry
+                jsonCoordinates = []
+                for geomCoordinate in geomCoordinates:
+                    print geomCoordinate
+                    jsonCoordinates.append([float(geomCoordinate[1]), float(geomCoordinate[0])])
+                if geomType == 'Point':
+                    feature["geometry"]["coordinates"] = [jsonCoordinates[0][0], jsonCoordinates[0][1]]
+                if geomType == 'LineString':
+                    feature["geometry"]["coordinates"] = jsonCoordinates
+                if geomType == 'Polygon':
+                    feature["geometry"]["coordinates"] = [jsonCoordinates]
+            else:
+                feature = {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": None
+                }
+
+            # build geojson properties
+            for fieldKey, fieldValue in record.iteritems():
+                if not fieldKey in ('GEOMETRY',):  # field exclusion
+                    feature["properties"][fieldKey] = fieldValue
+
+            geojson["features"].append(feature)
+
+        #return geojson, remoteResponse
+
+        metadata = self.getMetadataFromID(self.getValue("data collection table ID"))
+        if metadata:
+            layerName = metadata['name']
+        else:
+            layerName = self.tr('collected-data')
+
+        if response.status_code == requests.codes.ok:
+            workDir = QgsProject.instance().readPath("./")
+            geoJsonFileName = layerName + '_odk-' + time.strftime(
+                "%d-%m-%Y") + '.geojson'
+            with open(os.path.join(workDir, layerName), "w") as geojson_file:
+                geojson_file.write(json.dumps(geojson))
+            layer = self.iface.addVectorLayer(os.path.join(workDir, layerName), layerName[:-8], "ogr")
+            QgsMapLayerRegistry.instance().addMapLayer(layer)
+        else:
+            print response.text
+            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("error loading csv table %s, %s.") % (
+            response.status_code, response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+
+    def getTable(self):
+        #step1 - verify if form exists:
+        url = 'https://docs.google.com/spreadsheets/d/%s/export?format=csv&id=%s&gid=0' % (self.getValue("data collection table ID"),self.getValue("data collection table ID"))
+        headers = {'Authorization': 'Bearer {}'.format(self.authorization['access_token']),
+                   'Content-Type': 'application/json'}
+
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            csvIO = StringIO.StringIO(response.text)
+            csvIn = csv.DictReader(csvIO, delimiter=',', quotechar='"')
+            csvList = []
+            for row in csvIn:
+                csvList.append(row)
+                print row
+            geometryField = ''
+            for field in csvList[0].keys():
+                if 'GEOMETRY' in field.upper():
+                    geometryField = field
+                    prefix = field[:-8]
+                    len_prefix = len(field)-8
+            print "PREFIX:",prefix, len_prefix
+            newCsvList = []
+            for row in csvList:
+                newRow = {}
+                for field in row.keys():
+                    newRow[field[len_prefix:]] = row[field] # remap field
+                newCsvList.append(newRow)
+
+        return newCsvList,response
+
+    def getLayerByID(self,xForm_id):
+        pass
         
     def sendForm(self, xForm_id, xForm):
         if not self.authorization:
@@ -582,7 +828,8 @@ class google_drive(external_service):
         xForm_id += '.xml'
         fileId = self.getIdFromName(xForm_id)
         
-        folderId = self.createFolder(self.getValue('folder'))
+        folderId = self.createNew(self.getValue('folder'),'application/vnd.google-apps.folder')
+        self.shareFileWithCollectors(folderId, role='reader')
 
         metadata = {
             "name": xForm_id,
@@ -607,12 +854,17 @@ class google_drive(external_service):
         file = (xForm,open(xForm,'r'),'text/xml')
         files = {'data':data, 'file':file }
         response = requests.request(method, url, headers = headers, files = files )
-        
+
         #print response.json()
-        
+        if response.status_code == 200:
+            content_table_id = self.createNew(xForm_id[:-4]+"-collect-table",'application/vnd.google-apps.spreadsheet', parentsId=folderId)
+            self.shareFileWithCollectors(response.json()['id'],role='reader')
+            self.shareFileWithCollectors(content_table_id,role='writer')
+            if content_table_id:
+                url = 'https://www.googleapis.com/drive/v3/files/'+content_table_id
+                response = requests.get(url,headers = headers)
+                print "COLLECT TABLE DEF"
+                self.notify(xForm_id,self.getValue('folder'),response.json()['id'],response.json()['name'])
+                self.getValue('data collection table ID',newValue=response.json()['id']) #change setting table
+
         return response
-        
-        
-class DataDict(dict):
-  def read(self):
-      return str( self )
