@@ -19,9 +19,14 @@ Design layer properties structure editing the forms tab under qgis layer propert
 
 ![](doc/0-qgis-props-fields.png)
 
-Switching to QgisODK from menu, toolbar or layer context menu ![](doc/1-ico.png)appears the main dialog windows showing the field arrangement table and the function buttons. The generated table is ready to be exported or submitted, but it can be edited to customize contents and behaviours of the ODK form.
+Switching to QgisODK from menu, toolbar or layer context menu ![](doc/1-ico.png)appears the main dialog windows showing the field arrangement table and the function buttons. Together with layer fields are exported a geometry field needed for geolocation and a metadata field set, containing some autocompiled field related to submission and the collecting device.
+
+The generated table is ready to be exported or submitted, but it can be edited to customize contents and behaviours of the ODK form. In this case fields with default Edit Widget (TextEdit widget) are "type casted" in ODK form with the respective ODK types: *integer*, *decimal*, *text* and *datetime*. Fields associated to other Edit widgets are adapted to specific ODK types: CheckBox and ValueMap widgets are converted in *select one* ODK type translating the user defined values into ODK *choices*. Hidden edit widget are imported as disabled fields.
+Different ODK types define different behaviours in survey forms once imported in mobile device. [Here](https://opendatakit.org/help/form-design/examples/) are reported examples the results in the mobile device for each ODK type prompt.
 
 ![](doc/2-mainDialog.png)
+
+The Main Fields table
 
 
 
