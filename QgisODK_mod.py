@@ -25,6 +25,7 @@ from PyQt4.QtGui import QMenu, QAction, QIcon, QFileDialog
 from PyQt4.QtXml import QDomDocument, QDomElement
 from qgis.core import QgsMapLayer, QgsMapLayerRegistry, QgsProject
 from qgis.gui import QgsMessageBar
+
 # Initialize Qt resources from file resources.py
 import resources
 import json
@@ -32,6 +33,7 @@ import xlsxwriter
 import requests
 import io
 import time
+
 # Import the code for the dialog
 from QgisODK_mod_dialog import QgisODKDialog, QgisODKServices, QgisODKImportCollectedData
 import os.path
@@ -70,7 +72,7 @@ class QgisODK:
                 QCoreApplication.installTranslator(self.translator)
 
         # Create the dialog (after translation) and keep reference
-        self.dlg = QgisODKDialog()
+        self.dlg = QgisODKDialog(self)
         self.settingsDlg = QgisODKServices(self)
         self.importCollectedData = QgisODKImportCollectedData(self)
 
@@ -221,7 +223,8 @@ class QgisODK:
 
         backupDict = {
             'fieldsState': self.dlg.treeView.backup(),
-            'settings': self.settingsDlg.exportSettings()
+            'settings': self.settingsDlg.exportSettings(),
+            'targetLayer': self.dlg.treeView.targetLayer
         }
 
         workDir = QgsProject.instance().readPath("./")
@@ -240,7 +243,7 @@ class QgisODK:
                 restoreDict = json.load(json_file)
             ODKProjectName = QFileInfo(fileName).baseName()
             self.settingsDlg.importSettings(restoreDict['settings'])
-            self.dlg.treeView.recover(restoreDict['fieldsState'], ODKProjectName)
+            self.dlg.treeView.recover(restoreDict)
             self.dlg.setWindowTitle("QgisODK - " + ODKProjectName)
             self.dlg.layersComboBox.setCurrentIndex(0)
 
@@ -280,6 +283,7 @@ class QgisODK:
         for i in range(0,len(currentLayer.pendingFields())):
             fieldDef = {}
             fieldDef['fieldName'] = currentLayer.pendingFields()[i].name()
+            fieldDef['fieldMap'] = currentLayer.pendingFields()[i].name()
             fieldDef['fieldLabel'] = currentLayer.pendingFields()[i].comment()
             fieldDef['fieldHint'] = ''
             fieldDef['fieldType'] = currentLayer.pendingFields()[i].type()

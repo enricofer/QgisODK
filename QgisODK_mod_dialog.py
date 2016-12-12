@@ -51,7 +51,7 @@ FORM_CLASS, _ = uic.loadUiType(os.path.join(
 
 
 class QgisODKDialog(QtGui.QDialog, Ui_QgisODKDialogBase):
-    def __init__(self, parent=None):
+    def __init__(self, parentClass, parent=None):
         """Constructor."""
         super(QgisODKDialog, self).__init__(parent)
         # Set up the user interface from Designer.
@@ -60,6 +60,7 @@ class QgisODKDialog(QtGui.QDialog, Ui_QgisODKDialogBase):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
+        self.treeView.setIface(parentClass.iface)
         settingsIcon = QtGui.QIcon()
         settingsIcon.addPixmap(QtGui.QPixmap(os.path.join(os.path.dirname(__file__),"settings.svg")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.settingsToolButton.setIcon(settingsIcon)
@@ -131,8 +132,8 @@ class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.rejected.connect(self.reject)
+        #self.buttonBox.accepted.connect(self.accept)
+        #self.buttonBox.rejected.connect(self.reject)
 
         # initialize QTranslator
         self.plugin_dir = os.path.dirname(__file__)
@@ -162,6 +163,7 @@ class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
     def accept(self):
         geojsonDict,response = self.settingsDlg.getLayerByID(self.availableDataList.selectedItems()[0].text())
         if geojsonDict and response.status_code == requests.codes.ok:
+            self.hide()
             workDir = QgsProject.instance().readPath("./")
             geoJsonFileName = self.availableDataList.selectedItems()[0].text()+'_odk-'+time.strftime("%d-%m-%Y")+'.geojson'
             with open(os.path.join(workDir,geoJsonFileName), "w") as geojson_file:
@@ -243,7 +245,7 @@ class QgisODKServices(QtGui.QDialog, Ui_ServicesDialog):
         self.getCurrentService().getLayer()
 
     def getLayerByID(self,layerName):
-        geojsonDict,response = self.getCurrentService().getLayer(slugify(layerName))
+        geojsonDict,response = self.getCurrentService().getLayerByID(slugify(layerName))
         return  geojsonDict,response
 
     def exportSettings(self):
@@ -271,9 +273,8 @@ class external_service(QTableWidget):
     def __init__(self, parent, parameters):
         super(external_service, self).__init__(parent)
         self.parent = parent
-        self.module = parent.parent().parent().parent().parent()
+        self.module = parent.parent().parent().parent().module
         self.iface = parent.parent().parent().parent().module.iface
-
         self.resize(QSize(310,260))
         self.setColumnCount(2)
         self.setColumnWidth(0, 152)
@@ -429,6 +430,9 @@ class ona(external_service):
         response = requests.request(method, url, files=files, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = self.getProxiesConf())#, proxies = proxyDict,headers={'Content-Type': 'application/octet-stream'})
         return response
 
+    def getUUIDfield(self):
+        return '_uuid'
+
     def getJSON(self,xForm_id):
         #step1 - verify if form exists:
         form_key, response = self.formIDToPk(xForm_id)
@@ -443,12 +447,41 @@ class ona(external_service):
         '''
         interactive table selection
         '''
-        self.parent.importCollectedData.show()
+        self.module.importCollectedData.show()
+
+    def getTable(self,xForm_id):
+        #step1 - verify if form exists:
+        form_key, response = self.formIDToPk(xForm_id)
+        if response.status_code != requests.codes.ok:
+            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("error loading csv table %s, %s.") % (
+            response.status_code, response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+            return response, None
+        if form_key:
+            url = 'https://api.ona.io/api/v1/data/%s.csv' % form_key
+            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")))
+            if response.status_code == 200:
+                csvIO = StringIO.StringIO(response.text)
+                csvIn = csv.DictReader(csvIO, delimiter=',', quotechar='"')
+                csvList = []
+                for row in csvIn:
+                    csvList.append(row)
+                newCsvList = []
+                for row in csvList:
+                    newRow = {}
+                    for field in row.keys():
+                        newRow[field] = row[field] # remap field
+                    newCsvList.append(newRow)
+                return response, newCsvList
+            else:
+                self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("error loading csv table %s, %s.") % (
+                response.status_code, response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+                return response, None
 
     def getLayerByID(self,xForm_id):
-        remoteResponse = self.getJSON(xForm_id)
-        if remoteResponse.status_code == requests.codes.ok:
-            remoteData = remoteResponse.json()
+        #remoteResponse = self.getJSON(xForm_id)
+        response, remoteData = self.getTable(xForm_id)
+        print "TABLE",response
+        if response.status_code == requests.codes.ok:
             geojson = {
                 "type": "FeatureCollection",
                 "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
@@ -510,13 +543,14 @@ class ona(external_service):
                     if not fieldKey in ('GEOMETRY','_attachments','_tags','_notes','_bamboo_dataset_id','_geolocation'): # field exclusion
                         if fieldValue in attachements.keys():
                             fieldValue = attachements[fieldValue]
-                        feature["properties"][fieldKey] = fieldValue
+                        fieldRemap = self.module.dlg.treeView.mapNameTofield(fieldKey) #try to remap field name to existing field using map to property
+                        feature["properties"][fieldRemap] = fieldValue
                         
                 geojson["features"].append(feature)
 
-            return geojson, remoteResponse
+            return geojson, response
         else:
-            return None, remoteResponse
+            return None, response
 
 class google_drive(external_service):
     parameters = [

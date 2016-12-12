@@ -26,7 +26,7 @@ from PyQt4.QtGui import QTableWidget, QTableWidgetItem, QLineEdit, QComboBox, QC
 from PyQt4.QtGui import QTreeView, QStandardItem, QStandardItemModel, QItemSelectionModel, QItemDelegate
 from PyQt4.QtGui import QPen, QBrush, QColor, QMessageBox
 
-from qgis.core import QGis
+from qgis.core import QGis, QgsProject
 
 from QgisODK_mod_choices import QgisODKChoices
 
@@ -81,7 +81,6 @@ class ODK_fields(QTreeView):
         self.setDefaultDropAction(Qt.MoveAction)
         self.setAlternatingRowColors(True)
         self.showDropIndicator()
-        self.setItemDelegate(ODKDelegate(self))
         self.setIndentation(15)
         self.setRootIsDecorated(True)
 
@@ -101,10 +100,15 @@ class ODK_fields(QTreeView):
     def tr(self, message):
         return QCoreApplication.translate('QgisODK', message)
 
+    def setIface(self,iface):
+        self.iface = iface
+        self.setItemDelegate(ODKDelegate(self, iface))
+
     def modelDefaults(self):
         model = QStandardItemModel()
         model.setHorizontalHeaderLabels([
             self.tr('enabled'),
+            self.tr('map to'),
             self.tr('label'),
             self.tr('ODK type'),
             self.tr('hint'),
@@ -116,15 +120,24 @@ class ODK_fields(QTreeView):
             self.tr('appearance')
         ])
         self.setModel(model)
-        self.hideColumn(6)
         self.hideColumn(7)
+        self.hideColumn(8)
         return model
 
     def setFieldModel(self,layer,fieldsModel):
         
         model = self.modelDefaults()
     
-        self.layerName = layer.name()
+        self.targetLayer = {
+            'name': layer.name(),
+            'id': layer.id(),
+            'fields':[field.name() for field in layer.pendingFields()],
+            'provider': layer.dataProvider().name(),
+            'source': layer.source(),
+            'geometryType': layer.geometryType(),
+            'project': QgsProject.instance().fileInfo().absoluteFilePath()
+        }
+        
         if layer.geometryType() == QGis.Point:
             self.geometry = 'geopoint'
         elif layer.geometryType() == QGis.Line:
@@ -138,6 +151,7 @@ class ODK_fields(QTreeView):
             geo_field = {
                 'fieldEnabled': True,
                 'fieldName':'GEOMETRY',
+                'fieldMap': '',
                 'fieldLabel':'Insert geometry',
                 'fieldType': self.geometry,
                 'fieldHint': '',
@@ -161,7 +175,10 @@ class ODK_fields(QTreeView):
         ]
         for count,field in enumerate (fieldsModel):
             name_item = fieldItem(field['fieldName'])
-            name_item.setFlags(Qt.ItemIsSelectable)
+            if name_item == 'GEOMETRY':
+                name_item.setFlags(Qt.ItemIsSelectable)
+            else:
+                name_item.setFlags(Qt.ItemIsSelectable | Qt.ItemIsEditable)
             name_item.setEnabled(True)
             name_item.setDragEnabled(True)
             name_item.addFieldDef(field)
@@ -173,6 +190,7 @@ class ODK_fields(QTreeView):
             metadata_field = {
                 'fieldEnabled': None,
                 'fieldName':m[0],
+                'fieldMap':'',
                 'fieldLabel': '',
                 'fieldType': m[1],
                 'fieldHint': m[2],
@@ -229,6 +247,7 @@ class ODK_fields(QTreeView):
         field_item.setCheckState(Qt.Checked)
         field_item.addFieldDef({
             "fieldName":'',
+            "fieldMap":'',
             "fieldLabel":'',
             "fieldType":'select type',
             "fieldHint":'',
@@ -247,7 +266,7 @@ class ODK_fields(QTreeView):
         return field_item
 
     def removeField(self):
-        resp = QMessageBox().question(None,self.tr("Remove Field"), "Do you really want to remove current field?", QMessageBox.Yes, QMessageBox.No)
+        resp = QMessageBox().question(None,self.tr("Remove Field"), self.tr("Do you really want to remove current field?"), QMessageBox.Yes, QMessageBox.No)
         if resp == QMessageBox.Yes:
             idx = self.currentIndex()
             self.model().removeRow(idx.row(),idx.parent())
@@ -257,7 +276,7 @@ class ODK_fields(QTreeView):
         fieldsState = []
         for count in range (0, model.rowCount()):
             childRow = model.item(count)
-            probeSubChildRow = model.data(model.index(0,2,childRow.index()),Qt.DisplayRole)
+            probeSubChildRow = model.data(model.index(0,3,childRow.index()),Qt.DisplayRole)
             if probeSubChildRow: #is fieldItem
                 dict = self.renderItemStructure(childRow.index(), output = 'backup')
             else: #is groupItem
@@ -266,8 +285,10 @@ class ODK_fields(QTreeView):
             fieldsState.append(dict)
         return fieldsState
 
-    def recover(self,fieldsState,layerName):
-        self.layerName = layerName
+    def recover(self,restoreState):
+        fieldsState = ['fieldsState']
+        self.targetLayer = fieldsState = ['targetLayer']
+        self.layerName = self.targetLayer['name']
         model = self.modelDefaults()
         for field in fieldsState:
             if "control" in field: #is group item
@@ -295,6 +316,30 @@ class ODK_fields(QTreeView):
         else:
             item.setCheckState(Qt.Unchecked)
 
+    def mapNameTofield(self,name):
+        map = self.getFieldMappingDict()
+        if name in map.keys():
+            return map[name]
+        else:
+            return name
+
+    def getFieldMappingDict(self):
+        fieldMapping = {}
+        model = self.model()
+        for count in range (0, model.rowCount()):
+            childRow = model.item(count)
+            if childRow.rowCount() > 0 and childRow.checkState() == Qt.Checked: #exclude void groups and not enabled
+                probeSubChildRow = model.data(model.index(0,3,childRow.index()),Qt.DisplayRole)
+                if probeSubChildRow: #is fieldItem
+                    dict = self.renderItemStructure(childRow.index(), output = 'backup')
+                    fieldMapping[dict['fieldName']] = dict['fieldMap']
+                else: #is groupItem
+                    dict = self.renderGroupStructure(childRow.index(), output = 'backup')
+                    for item in dict['children']:
+                        fieldMapping[item['fieldName']] = item['fieldMap']
+        return fieldMapping
+
+
     def renderToTable(self, title=None):
         if not title:
             title = self.layerName
@@ -303,7 +348,7 @@ class ODK_fields(QTreeView):
         for count in range (0, model.rowCount()):
             childRow = model.item(count)
             if childRow.rowCount() > 0 and childRow.checkState() == Qt.Checked: #exclude void groups and not enabled
-                probeSubChildRow = model.data(model.index(0,2,childRow.index()),Qt.DisplayRole)
+                probeSubChildRow = model.data(model.index(0,3,childRow.index()),Qt.DisplayRole)
                 if probeSubChildRow: #is fieldItem
                     self.renderItemStructure(childRow.index(), output = 'table')
                 else: #is groupItem
@@ -321,7 +366,7 @@ class ODK_fields(QTreeView):
         for count in range (0, model.rowCount()):
             childRow = model.item(count)
             if childRow.rowCount() > 0 and childRow.checkState() == Qt.Checked: #exclude void groups and not enabled
-                probeSubChildRow = model.data(model.index(0,2,childRow.index()),Qt.DisplayRole)
+                probeSubChildRow = model.data(model.index(0,3,childRow.index()),Qt.DisplayRole)
                 if probeSubChildRow == 'select type': #exclude new fields not yet well formed
                     continue
                 if probeSubChildRow: #is fieldItem
@@ -356,7 +401,7 @@ class ODK_fields(QTreeView):
         procedure to build standard item dict
         '''
         model = self.model()
-        defOrder = ['fieldName', 'fieldLabel', 'fieldType', 'fieldHint', 'fieldRequired', 'fieldDefault', 'fieldQtype', 'fieldWidget', 'fieldChoices','fieldAppearance']
+        defOrder = ['fieldName', 'fieldMap', 'fieldLabel', 'fieldType', 'fieldHint', 'fieldRequired', 'fieldDefault', 'fieldQtype', 'fieldWidget', 'fieldChoices','fieldAppearance']
         fieldDefFromModel = {}
         for count in range (0,len(defOrder)):
             if count == 0:
@@ -437,7 +482,7 @@ class ODK_fields(QTreeView):
             childrenList.append(itemStructure)
         if groupName != 'metadata' and output == 'table':
             self.tableDef['survey'].append(['end group',groupName,None,None,None,None,None,None,None,None,None,None])
-        if output in ('dict', 'backup'):
+        if output in ('dict', 'backup', 'fieldMap'):
             if output == 'dict' and childrenList == []:
                 return None
             else:
@@ -445,11 +490,11 @@ class ODK_fields(QTreeView):
 
 
 class ODKDelegate(QItemDelegate):
-    '''
-    def __init__(self, parent, parentClass):
+
+    def __init__(self, parent, iface):
         QItemDelegate.__init__(self, parent)
-        self.parentClass = parentClass
-    '''
+        self.iface = iface
+
 
     def changeAppearanceAccordingly(self, type):
         if type in appearanceDef:
@@ -470,9 +515,19 @@ class ODKDelegate(QItemDelegate):
         parentNode = index.model().data(index.parent(), Qt.EditRole)
         self.currentIndex = index
         
-        q_type = QVariant.nameToType(index.model().data(index.sibling(0,6), Qt.DisplayRole))
-        
-        if column == 2 and parentNode: # combobox for odk types
+        q_type = QVariant.nameToType(index.model().data(index.sibling(0,7), Qt.DisplayRole))
+        if column == 1 and parentNode:  # combobox for field mapping
+            currentLayer = self.iface.legendInterface().currentLayer()
+            editorQWidget = QComboBox(parent)
+            fieldItems = []
+            for field in self.iface.legendInterface().currentLayer().pendingFields():
+                fieldItems.append(field.name())
+            if not content in fieldItems:
+                fieldItems.append(content)
+            editorQWidget.addItems(fieldItems)
+            editorQWidget.setCurrentIndex(editorQWidget.findText(content))
+            return editorQWidget
+        if column == 3 and parentNode: # combobox for odk types
             editorQWidget = QComboBox(parent)
             #QVariantType = indexQModelIndex.model().item(row,6).data()
             if content in ['text','note','image','barcode','audio','video']:
@@ -491,12 +546,12 @@ class ODKDelegate(QItemDelegate):
             editorQWidget.setCurrentIndex(editorQWidget.findText(content))
             editorQWidget.currentIndexChanged.connect(self.changeAppearanceAccordingly)
             return editorQWidget
-        elif column == 8 and parentNode: # qdialog for value/label map
+        elif column == 9 and parentNode: # qdialog for value/label map
             content = QgisODKChoices.getChoices(content, q_type, title = parentNode)
             index.model().setData(index,content, Qt.DisplayRole)
             QItemDelegate.createEditor(self, parent, option, index)
-        elif column == 9 and parentNode: # combobox for appearance
-            contentType = index.model().data(index.sibling(0,2), Qt.DisplayRole)
+        elif column == 10 and parentNode: # combobox for appearance
+            contentType = index.model().data(index.sibling(0,3), Qt.DisplayRole)
             if contentType == '' or not contentType in appearanceDef.keys():
                 return
             editorQWidget = QComboBox(parent)
@@ -523,7 +578,7 @@ class fieldItem(QStandardItem):
 
     def addFieldDef(self,fieldDef, recover = None):
         #self.fieldDef = fieldDef
-        self.defOrder = ['fieldName', 'fieldLabel', 'fieldType', 'fieldHint', 'fieldRequired', 'fieldDefault', 'fieldQtype', 'fieldWidget', 'fieldChoices','fieldAppearance']
+        self.defOrder = ['fieldName', 'fieldMap', 'fieldLabel', 'fieldType', 'fieldHint', 'fieldRequired', 'fieldDefault', 'fieldQtype', 'fieldWidget', 'fieldChoices','fieldAppearance']
         row = []
         if recover: #backup dict provided if recovering fields state
             for fdef in self.defOrder:
