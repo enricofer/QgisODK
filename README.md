@@ -15,9 +15,13 @@ Let's follow a QgisODK survey from form creation to data retrieving
 
 ## 1 survey design from layer properties ## 
 
-Design layer properties structure editing the forms tab under qgis layer properties. In this tab fields can be added defining their data type. Furthermore each field can be commented to explain the usage and can be associated with a specific "edit widget", the other field properties (alias, WMF, WMS) are not significant for the Qgis ODK plugin.
+Design layer properties structure editing the forms tab under qgis layer properties. In this tab fields can be added defining their data type. Furthermore each field can be associated with a specific "edit widget", the other field properties (comment, alias, WMF, WMS) are not significant for the Qgis ODK plugin. In this case the first field 'OBJECTID' is set to Hidden widget, the fields 'SETTORE' and 'CATEGORIA' are set to a Value Map widget, the fields 'VETRINA' and 'INSEGNA' are set to Photo widget and all the others are set to Text edit widget (default)
 
 ![](doc/0-qgis-props-fields.png)
 
-Now it's time to switch to QgisODK plugin base dialog called from menu, toolbar or layer context menu
+Switching to QgisODK from menu, toolbar or layer context menu ![](doc/1-ico.png)appears the main dialog windows showing the field arrangement table and the function buttons. The generated table is ready to be exported or submitted, but it can be edited to customize contents and behaviours of the ODK form.
+
+![](doc/2-mainDialog.png)
+
+
 
