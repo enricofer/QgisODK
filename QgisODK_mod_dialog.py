@@ -333,20 +333,6 @@ class external_service(QTableWidget):
             availableDataCollections.append(form["id_string"])
         return availableDataCollections,response
     
-    def formIDToPk(self,xForm_id):
-        #verify if form exists:
-        url = 'https://api.ona.io/api/v1/projects/%s/forms' % self.getValue("project_id")
-        response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = self.getProxiesConf())
-        if response.status_code != requests.codes.ok:
-            return None, response
-        forms = response.json()
-        form_key = None
-        for form in forms:
-            if form['sms_id_string'] == xForm_id:
-                form_key = form['formid']
-                break
-        return form_key, response
-    
     def getProxiesConf(self):
         s = QSettings() #getting proxy from qgis options settings
         proxyEnabled = s.value("proxy/proxyEnabled", "")
@@ -410,6 +396,20 @@ class ona(external_service):
 
     def getExportExtension(self):
         return 'xls'
+    
+    def formIDToPk(self,xForm_id):
+        #verify if form exists:
+        url = 'https://api.ona.io/api/v1/projects/%s/forms' % self.getValue("project_id")
+        response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = self.getProxiesConf())
+        if response.status_code != requests.codes.ok:
+            return None, response
+        forms = response.json()
+        form_key = None
+        for form in forms:
+            if form['sms_id_string'] == xForm_id:
+                form_key = form['formid']
+                break
+        return form_key, response
 
     def sendForm(self, xForm_id, xForm):
         
@@ -540,10 +540,18 @@ class ona(external_service):
                 
                 #build geojson properties
                 for fieldKey, fieldValue in record.iteritems():
-                    if not fieldKey in ('GEOMETRY','_attachments','_tags','_notes','_bamboo_dataset_id','_geolocation'): # field exclusion
+                    if not fieldKey in ('GEOMETRY','_attachments','_tags','_notes','_bamboo_dataset_id','_geolocation'): # field exclusion to verify
+                        
+                            
                         if fieldValue in attachements.keys():
                             fieldValue = attachements[fieldValue]
-                        fieldRemap = self.module.dlg.treeView.mapNameTofield(fieldKey) #try to remap field name to existing field using map to property
+                            
+                        if "/" in fieldKey: #check if grouped Field
+                            cleanedKey = fieldKey.split("/")[-1]
+                            print cleanedKey, fieldKey
+                        else:
+                            cleanedKey = fieldKey
+                        fieldRemap = self.module.dlg.treeView.mapNameTofield(cleanedKey) #try to remap field name to existing field using map to property
                         feature["properties"][fieldRemap] = fieldValue
                         
                 geojson["features"].append(feature)

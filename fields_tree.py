@@ -51,9 +51,9 @@ def QVariantToODKtype(q_type):
         return 'text'
     elif q_type == QVariant.Date:
         return 'datetime'
-    elif QVariant.nameToType(q_type) in [2,3,4,32,33,35,36]:
+    elif q_type in [2,3,4,32,33,35,36]:
         return 'integer'
-    elif QVariant.nameToType(q_type) in [6,38]:
+    elif q_type in [6,38]:
         return 'decimal'
     else:
         raise AttributeError("Can't cast QVariant to ODKType: " + q_type)
@@ -286,8 +286,8 @@ class ODK_fields(QTreeView):
         return fieldsState
 
     def recover(self,restoreState):
-        fieldsState = ['fieldsState']
-        self.targetLayer = fieldsState = ['targetLayer']
+        fieldsState = restoreState['fieldsState']
+        self.targetLayer = restoreState['targetLayer']
         self.layerName = self.targetLayer['name']
         model = self.modelDefaults()
         for field in fieldsState:
@@ -342,7 +342,7 @@ class ODK_fields(QTreeView):
 
     def renderToTable(self, title=None):
         if not title:
-            title = self.layerName
+            title = self.targetLayer['name']
         model = self.model()
         self.tableDefault()
         for count in range (0, model.rowCount()):
@@ -501,7 +501,7 @@ class ODKDelegate(QItemDelegate):
             appearance = appearanceDef[type][0]
         else:
             appearance = 'default'
-        self.currentIndex.model().setData(self.currentIndex.sibling(0,9),appearance, Qt.DisplayRole)
+        self.currentIndex.model().setData(self.currentIndex.sibling(0,10),appearance, Qt.DisplayRole)
 
     def createEditor (self, parent, option, index):
         try:
@@ -516,6 +516,7 @@ class ODKDelegate(QItemDelegate):
         self.currentIndex = index
         
         q_type = QVariant.nameToType(index.model().data(index.sibling(0,7), Qt.DisplayRole))
+        print "QTYPE:", q_type
         if column == 1 and parentNode:  # combobox for field mapping
             currentLayer = self.iface.legendInterface().currentLayer()
             editorQWidget = QComboBox(parent)
@@ -529,7 +530,7 @@ class ODKDelegate(QItemDelegate):
             return editorQWidget
         if column == 3 and parentNode: # combobox for odk types
             editorQWidget = QComboBox(parent)
-            #QVariantType = indexQModelIndex.model().item(row,6).data()
+            #QVariantType = indexQModelIndex.model().item(row,7).data()
             if content in ['text','note','image','barcode','audio','video']:
                 combobox_items = ['text','note','image','barcode','audio','video','select one']
             elif content in ['date', 'datetime']:
