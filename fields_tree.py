@@ -124,8 +124,16 @@ class ODK_fields(QTreeView):
         self.setModel(model)
         self.hideColumn(7)
         self.hideColumn(8)
-        #self.hideColumn(11)
-        #self.hideColumn(12)
+        self.hideColumn(11)
+        self.hideColumn(12)
+        for column in range(0,12):
+            if column > 3:
+                width = 60
+            elif column == 3:
+                width = 90
+            else:
+                width = 140
+            self.setColumnWidth(column,width)
         return model
 
     def setFieldModel(self,layer,fieldsModel):
@@ -180,8 +188,7 @@ class ODK_fields(QTreeView):
         for count,field in enumerate (fieldsModel):
             if field['fieldName'] == 'ODKUUID': #Ignore uuid field because is self defined in metadata section
                 continue
-            name_item = fieldItem()
-            print "ITEM:", name_item
+            name_item = fieldItem(field['fieldName'])
             if name_item == 'GEOMETRY':
                 name_item.setFlags(Qt.ItemIsSelectable)
             else:
@@ -213,7 +220,6 @@ class ODK_fields(QTreeView):
             metadata_item.setFlags(Qt.ItemIsSelectable)
             metadata_item.setEnabled(True)
             metadata_item.setDragEnabled(True)
-            print metadata_field
             metadata_item.addFieldDef(metadata_field)
             metadata_group.appendRow(metadata_item)
 
@@ -533,7 +539,6 @@ class ODKDelegate(QItemDelegate):
         self.currentIndex = index
         
         q_type = QVariant.nameToType(index.model().data(index.sibling(0,7), Qt.DisplayRole))
-        print "QTYPE:", q_type
         if column == 1 and parentNode:  # combobox for field mapping
             currentLayer = self.iface.legendInterface().currentLayer()
             editorQWidget = QComboBox(parent)
