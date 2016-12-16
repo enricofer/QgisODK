@@ -628,15 +628,15 @@ class google_drive(external_service):
 
     def notify(self,XFormName,XFormFolder,collectTableId,collectTableName):
         if self.getValue('notifications?(YES/NO)').upper() == 'YES':
-            message = '''
-You are receiving this automatically generated message because you are taking part of a Open Data Kit survey
+            message = self.tr('''
+You are receiving this automatically generated message because you are taking part to a Open Data Kit survey
 
 Your ODK Collect app has to be configured with the following parameters:
 a new form called %s has been uploaded in the folder %s shared with your Google Drive
 The Data Collection table is named %s and has the following uri:
 
 https://docs.google.com/spreadsheets/d/%s/edit
-            ''' % (XFormName, XFormFolder,collectTableName,collectTableId )
+            ''') % (XFormName, XFormFolder,collectTableName,collectTableId )
             for email in self.collectors:
                 self.send_message(self.getValue('google drive login'),email,'ODK survey notification', message)
 
@@ -916,7 +916,6 @@ https://docs.google.com/spreadsheets/d/%s/edit
             if content_table_id:
                 url = 'https://www.googleapis.com/drive/v3/files/'+content_table_id
                 response = requests.get(url,headers = headers)
-                print "COLLECT TABLE DEF"
                 self.notify(xForm_id,self.getValue('folder'),response.json()['id'],response.json()['name'])
                 self.getValue('data collection table ID',newValue=response.json()['id']) #change setting table
 

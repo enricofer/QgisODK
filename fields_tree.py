@@ -24,7 +24,7 @@
 from PyQt4.QtCore import Qt, QVariant, QSettings, QTranslator, qVersion, QCoreApplication
 from PyQt4.QtGui import QTableWidget, QTableWidgetItem, QLineEdit, QComboBox, QCheckBox, QAbstractItemView
 from PyQt4.QtGui import QTreeView, QStandardItem, QStandardItemModel, QItemSelectionModel, QItemDelegate
-from PyQt4.QtGui import QPen, QBrush, QColor, QMessageBox
+from PyQt4.QtGui import QPen, QBrush, QColor, QMessageBox, QIcon
 
 from qgis.core import QGis, QgsProject
 
@@ -57,8 +57,17 @@ def QVariantToODKtype(q_type):
         return 'decimal'
     else:
         raise AttributeError("Can't cast QVariant to ODKType: " + q_type)
-    
 
+def cleanXMLtag(text):
+    allowedChars = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM-"
+    for i in range(0, len(text)):
+        if not text[0].isalpha():
+            text = text[1:]
+    cleanText = ''
+    for char in text:
+        if char in allowedChars:
+            cleanText += char
+    return cleanText or 'odk-field'
 
 def slugify (s):
     if type(s) is unicode:
@@ -79,7 +88,7 @@ class ODK_fields(QTreeView):
         self.setDragEnabled(True)
         self.setDragDropMode(QAbstractItemView.DragDrop) #QAbstractItemView.InternalMove
         self.setDefaultDropAction(Qt.MoveAction)
-        self.setAlternatingRowColors(True)
+        #self.setAlternatingRowColors(True)
         self.showDropIndicator()
         self.setIndentation(15)
         self.setRootIsDecorated(True)
@@ -135,6 +144,12 @@ class ODK_fields(QTreeView):
                 width = 140
             self.setColumnWidth(column,width)
         return model
+        model.itemChanged.connect(self.cleanTreeItem)
+
+    def cleanTreeItem(self,item):
+        print "cleaning", item.text()
+        if item.index().column() == 0:
+            item.setText(cleanXMLtag(item.text()))
 
     def setFieldModel(self,layer,fieldsModel):
         
@@ -188,7 +203,7 @@ class ODK_fields(QTreeView):
         for count,field in enumerate (fieldsModel):
             if field['fieldName'] == 'ODKUUID': #Ignore uuid field because is self defined in metadata section
                 continue
-            name_item = fieldItem(field['fieldName'])
+            name_item = fieldItem(cleanXMLtag(field['fieldName']))
             if name_item == 'GEOMETRY':
                 name_item.setFlags(Qt.ItemIsSelectable)
             else:
@@ -197,7 +212,6 @@ class ODK_fields(QTreeView):
             name_item.setDragEnabled(True)
             name_item.addFieldDef(field)
             model.appendRow(name_item)
-            
 
         metadata_group = self.addGroup(metadata = True)
         for m in metadata:
@@ -238,15 +252,7 @@ class ODK_fields(QTreeView):
         group_item.setDragEnabled(True)
         group_item.setCheckable(True)
         group_item.setCheckState(Qt.Checked)
-        '''
-        group_row = [group_item]
-        for i in range (1,8):
-            null_item = QStandardItem('')
-            null_item.setEnabled(False)
-            null_item.setDropEnabled(True)
-            null_item.setDragEnabled(False)
-            #group_row.append(null_item)
-        '''
+        group_item.setIcon(QIcon(os.path.join(os.path.dirname(__file__),"load.png")))
         model.appendRow([group_item])
         if not name:
             self.setCurrentIndex(model.indexFromItem(group_item))
@@ -515,9 +521,25 @@ class ODK_fields(QTreeView):
 class ODKDelegate(QItemDelegate):
 
     def __init__(self, parent, iface):
+        self.parent = parent
         QItemDelegate.__init__(self, parent)
         self.iface = iface
 
+    def paint(self, painter, option, index):
+        if index.row() != 0:
+            topLeft = option.rect.topLeft()
+            topRight = option.rect.topRight()
+            painter.drawLine(topLeft,topRight)
+        QItemDelegate.paint(self, painter, option, index)
+
+    def setModelData(self, editor, model, index):
+        if index.column() == 0:
+            print "cleaning"
+            value = cleanXMLtag(editor.text())
+            print value
+            model.setData(index, value)
+        else:
+            QItemDelegate.setModelData(self, editor, model, index)
 
     def changeAppearanceAccordingly(self, type):
         if type in appearanceDef:
@@ -602,6 +624,7 @@ class fieldItem(QStandardItem):
     def addFieldDef(self,fieldDef, recover = None):
         self.defOrder = ['fieldName', 'fieldMap', 'fieldLabel', 'fieldType', 'fieldHint', 'fieldRequired', 'fieldDefault', 'fieldQtype', 'fieldWidget', 'fieldChoices','fieldAppearance','fieldReadOnly','fieldCalculation']
         row = []
+        self.setIcon(QIcon(os.path.join(os.path.dirname(__file__),"field.png")))
         if not 'fieldReadOnly' in fieldDef:
             fieldDef['fieldReadOnly'] = ''
         if not 'fieldCalculation' in fieldDef:
@@ -645,7 +668,7 @@ class fieldItem(QStandardItem):
                 elif fdef == 'fieldChoices':
                     sub_item = QStandardItem(json.dumps(fieldDef[fdef]))
                 else:
-                    sub_item = QStandardItem(str(fieldDef[fdef]) or '')
+                    sub_item = QStandardItem(fieldDef[fdef] or '')
                 sub_item.setDropEnabled(False)
                 sub_item.setDragEnabled(False)
                 row.append(sub_item)
