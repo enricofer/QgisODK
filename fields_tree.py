@@ -117,11 +117,15 @@ class ODK_fields(QTreeView):
             self.tr('QVar_type'),
             self.tr('widget'),
             self.tr('choices'),
-            self.tr('appearance')
+            self.tr('appearance'),
+            self.tr('read_only'),
+            self.tr('calculation')
         ])
         self.setModel(model)
         self.hideColumn(7)
         self.hideColumn(8)
+        #self.hideColumn(11)
+        #self.hideColumn(12)
         return model
 
     def setFieldModel(self,layer,fieldsModel):
@@ -159,7 +163,7 @@ class ODK_fields(QTreeView):
                 'fieldDefault': '',
                 'fieldQtype':'',
                 'fieldWidget':'',
-                'fieldChoices':{}
+                'fieldChoices':{},
             }
             fieldsModel.insert(0,geo_field)
 
@@ -171,10 +175,13 @@ class ODK_fields(QTreeView):
             ['subscriberid','subscriberid','IMSI (International Mobile Subscriber Identity)',''],
             ['simserial','simserial','SIM serial number',''],
             ['phonenumber','phonenumber','Phone number (if available)',''],
-            #['instanceID','text','instance unique identifier','${uuid()}'],
+            ['ODKUUID','calculate','instance unique identifier','uuid()'],
         ]
         for count,field in enumerate (fieldsModel):
-            name_item = fieldItem(field['fieldName'])
+            if field['fieldName'] == 'ODKUUID': #Ignore uuid field because is self defined in metadata section
+                continue
+            name_item = fieldItem()
+            print "ITEM:", name_item
             if name_item == 'GEOMETRY':
                 name_item.setFlags(Qt.ItemIsSelectable)
             else:
@@ -195,15 +202,18 @@ class ODK_fields(QTreeView):
                 'fieldType': m[1],
                 'fieldHint': m[2],
                 'fieldRequired': '',
-                'fieldDefault': m[3],
-                'fieldQtype':'',
+                'fieldDefault': '',
+                'fieldQtype': 10,
                 'fieldWidget': '',
-                'fieldChoices':{}
+                'fieldChoices':{},
+                'fieldReadOnly': '',
+                'fieldCalculation': m[3],
             }
             metadata_item = fieldItem(metadata_field['fieldName'])
             metadata_item.setFlags(Qt.ItemIsSelectable)
             metadata_item.setEnabled(True)
             metadata_item.setDragEnabled(True)
+            print metadata_field
             metadata_item.addFieldDef(metadata_field)
             metadata_group.appendRow(metadata_item)
 
@@ -256,7 +266,9 @@ class ODK_fields(QTreeView):
             "fieldChoices":{},
             "fieldEnabled":True,
             "fieldRequired":None,
-            "fieldQtype": "UserType"
+            "fieldQtype": "UserType",
+            "fieldReadOnly": "",
+            "fieldCalculation": "field"
         })
 
         model.appendRow([field_item])
@@ -360,7 +372,7 @@ class ODK_fields(QTreeView):
     def renderToDict(self,title = None, service = None):
     
         if not title:
-            title = self.layerName
+            title = self.targetLayer['name']
         model = self.model()
         childrenList = []
         for count in range (0, model.rowCount()):
@@ -382,6 +394,7 @@ class ODK_fields(QTreeView):
             return {
            "name":slugify(title),
            "title":title,
+           "instance_name": 'uuid()',
            "sms_keyword":slugify(title),
            "default_language":"default",
            "id_string":slugify(title),
@@ -401,13 +414,13 @@ class ODK_fields(QTreeView):
         procedure to build standard item dict
         '''
         model = self.model()
-        defOrder = ['fieldName', 'fieldMap', 'fieldLabel', 'fieldType', 'fieldHint', 'fieldRequired', 'fieldDefault', 'fieldQtype', 'fieldWidget', 'fieldChoices','fieldAppearance']
+        defOrder = ['fieldName', 'fieldMap', 'fieldLabel', 'fieldType', 'fieldHint', 'fieldRequired', 'fieldDefault', 'fieldQtype', 'fieldWidget', 'fieldChoices','fieldAppearance','fieldReadOnly','fieldCalculation']
         fieldDefFromModel = {}
         for count in range (0,len(defOrder)):
             if count == 0:
                 fieldDefFromModel['fieldName'] = itemIndex.data(Qt.DisplayRole)
                 if service == "google_drive":
-                    fieldDefFromModel['fieldName'] = fieldDefFromModel['fieldName'].replace('_','-')
+                    fieldDefFromModel['fieldName'] = fieldDefFromModel['fieldName'].replace('_','').replace('-','')
             else:
                 fieldInd = model.index(0,count,itemIndex)
                 if defOrder[count] == 'fieldRequired':
@@ -438,7 +451,10 @@ class ODK_fields(QTreeView):
 
             if fieldDefFromModel['fieldRequired']:
                 structure["bind"] = {"required": "yes"}
-            
+
+            if fieldDefFromModel['fieldName'] == 'ODKUUID':
+                structure["bind"] = {"readonly": "true()", "calculate": "concat('uuid:', uuid())"}
+
             if not fieldDefFromModel['fieldAppearance'] in ['default','']:
                 structure["control"] = {"appearance": fieldDefFromModel['fieldAppearance']}
 
@@ -456,6 +472,7 @@ class ODK_fields(QTreeView):
             surveyRow[2] = fieldDefFromModel['fieldLabel'] or fieldDefFromModel['fieldName']
             surveyRow[3] = fieldDefFromModel['fieldHint']
             surveyRow[7] = fieldDefFromModel['fieldAppearance']
+            surveyRow[11] = fieldDefFromModel['fieldCalculation']
             if fieldDefFromModel['fieldRequired']:
                  surveyRow[6] = 'yes'
             if fieldDefFromModel['fieldChoices'] != {} and fieldDefFromModel['fieldType'] in ['select one',
@@ -578,9 +595,12 @@ class ODKDelegate(QItemDelegate):
 class fieldItem(QStandardItem):
 
     def addFieldDef(self,fieldDef, recover = None):
-        #self.fieldDef = fieldDef
-        self.defOrder = ['fieldName', 'fieldMap', 'fieldLabel', 'fieldType', 'fieldHint', 'fieldRequired', 'fieldDefault', 'fieldQtype', 'fieldWidget', 'fieldChoices','fieldAppearance']
+        self.defOrder = ['fieldName', 'fieldMap', 'fieldLabel', 'fieldType', 'fieldHint', 'fieldRequired', 'fieldDefault', 'fieldQtype', 'fieldWidget', 'fieldChoices','fieldAppearance','fieldReadOnly','fieldCalculation']
         row = []
+        if not 'fieldReadOnly' in fieldDef:
+            fieldDef['fieldReadOnly'] = ''
+        if not 'fieldCalculation' in fieldDef:
+            fieldDef['fieldCalculation'] = ''
         if recover: #backup dict provided if recovering fields state
             for fdef in self.defOrder:
                 if fdef == 'fieldName':
@@ -633,7 +653,7 @@ class fieldItem(QStandardItem):
 
 
     def getODKType(self,field):
-        if field['fieldType'] in ['select type','geopoint','geoshape','geotrace','start', 'end', 'today', 'deviceid', 'subscriberid', 'simserial', 'phonenumber']:
+        if field['fieldType'] in ['select type','geopoint','geoshape','geotrace','start', 'calculate', 'end', 'today', 'deviceid', 'subscriberid', 'simserial', 'phonenumber']:
             field['fieldQtype'] = "UserType"
             return field['fieldType']
         field['fieldQtype'] = QVariant.typeToName(field['fieldType'])

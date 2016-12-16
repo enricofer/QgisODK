@@ -2,7 +2,7 @@
 
 ![](icon.svg) 
 
-The Qgis plugin allows to build a "on field" mobile survey starting from a Qgis layer and get back collected data with the help of Open Data Kit tools and services. 
+The Qgis plugin allows to build a "on field" mobile survey in minutes starting from a Qgis layer and get back collected data with the help of Open Data Kit tools and services. 
 [Open Data Kit (ODK)](https://opendatakit.org/) is a free and open-source set of tools which help to manage mobile data collection solutions. 
 
 The typical ODK collection workflow is based on the following activities:
@@ -172,7 +172,7 @@ At the moment the plugin supports ona.io, with direct simple http authentication
 
 ## 4 QgisODK and ona.io
 
-Ona.io is a complete ODK-aggregate service that offers at the moment a free access for 1 private form and for unlimited public forms. The user must sign up to ona.io and subscribe an account. Once logged in we must annotate the project ID used for forms uploading that can be retrieved from the project URL. In this case the project ID of the project is 26283:
+Ona.io is a complete ODK-aggregate service that offers at the moment a free access for 1 private form and for unlimited public forms. The users, the survey admin and the other contributors must sign up to ona.io and subscribe an account. Furthermore survey project have to be shared among data contributors giving proper permissions (can submit, can admim, can edit ...).  Once logged in we must annotate the project ID used for forms uploading that can be retrieved from the project URL. In this case the project ID of the project is 26283:
 
 ![](doc/06-ona.png)
 
@@ -203,3 +203,24 @@ The plugin make use of field mapping that associates ODK field names with Qgis f
 ![](doc/12-data-collection.png)
 
 ## 5 QgisODK and google drive
+
+As alternative to Ona.io, QgisODK plugin can use Google drive as support server. In this case the export/import procedure is slightly different. Google drive tab has to be fill and set:
+
+![](doc/08-settings_google-drive.png)
+
+The required parameters helps survey administrator to share forms and import collected data.
+
+- *folder*: if filled the plugin will export forms in the suggested root subfolder
+- *data collection table ID*: contains the google sheet ID, can be filled manually, if known, or automatically set by plugin when uploading form
+- *google drive login*: the admin google drive login. It will be used for autofill user login in OAuth2 google authenthication
+- *data collectors emails*: a space separated emails of involved collectors. The plugin will automatically share *folder* and all needed files (forms and data collection table) with all the suggested google drive users
+- *notifications?*: if YES the plugin will send by the supplied admin google login an email message with all needed settings for *ODK collect* Android App
+
+Pushing "export to web service" button in main dialog, the user will be prompted for google authentication, once authorized the plugin will upload Survey XForm (xml) to google drive in the *folder* specified in plugin settings under google drive tab, will create a new void data collection table in the same folder filling the *data collection table ID* field of the setting tab and will share all these documents with the users provided in *data collectors emails* field.
+
+![](doc/13-g-auth.png)
+
+*ODK collect* App has to be configured for Google drive:
+
+![](doc/15-odk-collect3.png)
+

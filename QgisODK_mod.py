@@ -35,7 +35,7 @@ import io
 import time
 
 # Import the code for the dialog
-from QgisODK_mod_dialog import QgisODKDialog, QgisODKServices, QgisODKImportCollectedData
+from QgisODK_mod_dialog import QgisODKDialog, QgisODKServices
 import os.path
 from pyxform.builder import create_survey_element_from_dict
 from json_form_schema import json_test, dict_test
@@ -74,7 +74,7 @@ class QgisODK:
         # Create the dialog (after translation) and keep reference
         self.dlg = QgisODKDialog(self)
         self.settingsDlg = QgisODKServices(self)
-        self.importCollectedData = QgisODKImportCollectedData(self)
+        #self.importCollectedData = QgisODKImportCollectedData()
 
         # Declare instance attributes
         self.actions = []
@@ -254,7 +254,7 @@ class QgisODK:
         self.dlg.raise_()
 
     def importCollectedDataAction(self):
-        self.settingsDlg.getLayer()
+        self.settingsDlg.collectData()
 
     def contextOdkout(self):
         self.populateVectorLayerCombo()
@@ -324,6 +324,7 @@ class QgisODK:
             fileName += ".xml"
         print 'service',self.settingsDlg.getServiceName()
         json_out = self.dlg.treeView.renderToDict(service = self.settingsDlg.getServiceName())
+        print json_out
         survey = create_survey_element_from_dict(json_out)
         warnings = []
         xform = survey.to_xml(validate=None, warnings=warnings)
@@ -352,7 +353,6 @@ class QgisODK:
         return xForm_id
 
     def exportToWebService(self):
-
         tmpXlsFileName = os.path.join(self.plugin_dir,"tmpodk."+self.settingsDlg.getExportExtension())
         exportMethod = getattr(self, self.settingsDlg.getExportMethod())
         xForm_id = exportMethod(fileName=tmpXlsFileName)
