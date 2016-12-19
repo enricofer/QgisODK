@@ -24,6 +24,7 @@
 import os
 import json
 import time
+import requests
 
 from PyQt4 import QtGui, uic
 from PyQt4.QtGui import QTableWidgetItem, QSizePolicy, QItemDelegate, QComboBox, QLineEdit, QFileDialog
@@ -44,6 +45,8 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
         super(QgisODKimportDataFromService, self).__init__(parent)
         self.setupUi(self)
         self.syncroCheckBox.stateChanged.connect(self.checkSyncroAction)
+        self.downloadCheckBox.stateChanged.connect(self.checkDownloadAction)
+        self.checkDownloadAction()
         self.fieldTable.setColumnCount(3)
         self.fieldTable.verticalHeader().setVisible(False)
         self.fieldTable.horizontalHeader().setVisible(True)
@@ -51,6 +54,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
         self.fieldTable.setHorizontalHeaderItem(0, QTableWidgetItem(self.tr("import")))
         self.fieldTable.setHorizontalHeaderItem(1, QTableWidgetItem(self.tr("ODK field")))
         self.fieldTable.setHorizontalHeaderItem(2, QTableWidgetItem(self.tr("map to Qgis field")))
+        #self.fieldTable.setHorizontalHeaderLabels([self.tr("import"),self.tr("ODK field"),self.tr("map to Qgis field")])
         self.fieldTable.setColumnWidth(0,30)
         self.fieldTable.setColumnWidth(1,125)
         self.fieldTable.setColumnWidth(2,125)
@@ -70,10 +74,14 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
             if qVersion() > '4.3.3':
                 QCoreApplication.installTranslator(self.translator)
 
-
     def tr(self, message):
         return QCoreApplication.translate('QgisODK', message)
 
+    def checkDownloadAction(self):
+        if self.downloadCheckBox.isChecked():
+            self.relativePathsCheckBox.setEnabled(True)
+        else:
+            self.relativePathsCheckBox.setEnabled(False)
 
     def checkSyncroAction(self):
         if self.syncroCheckBox.isChecked():
@@ -98,10 +106,8 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
             for field in self.module.dlg.treeView.getFieldMappingDict().values():
                 if field !='':
                     self.fieldMapping[slugify(field)] = field
-                
+            self.processingLayer = None
             self.populateFieldTable()
-
-    
 
     def layerComboBoxChanged(self):
         '''
@@ -180,7 +186,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                     elif key[-7:] == "ODKUUID":
                         cleanedFeat["ODKUUID"] = value
                     elif key in exportMap:
-                        cleanedFeat[exportMap[key]] = value
+                        cleanedFeat[exportMap[key]] = self.cleanURI(value) #Download and provide local URI if value is internet URI
                 cleanedDataDict.append(cleanedFeat)
             if self.syncroCheckBox.isChecked():
                 self.updateLayer(self.getCurrentLayer(),cleanedDataDict)
@@ -196,6 +202,38 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                         geojson_file.write(json.dumps(geojsonDict))
                     layer = self.iface.addVectorLayer(os.path.join(workDir,geoJsonFileName), QFileInfo(geoJsonFileName).baseName(), "ogr")
                     QgsMapLayerRegistry.instance().addMapLayer(layer)
+
+
+    def cleanURI(self,URI):
+        
+        attachements = {}
+        if isinstance(URI, basestring) and self.downloadCheckBox.isChecked() and (URI[0:7] == 'http://' or URI[0:8] == 'https://'):
+            if self.processingLayer:
+                layerName = self.processingLayer
+            else:
+                layerName = 'odk'
+            fileName = URI.split('/')[-1]
+            downloadDir = os.path.join(QgsProject.instance().readPath("./"),'attachments_%s' % layerName)
+            if not os.path.exists(downloadDir):
+                os.makedirs(downloadDir)
+            response = requests.get(URI, stream=True)
+            localAttachmentPath = os.path.abspath(os.path.join(downloadDir,fileName))
+            if response.status_code == 200:
+                print "downloading",localAttachmentPath, URI
+                with open(localAttachmentPath, 'wb') as f:
+                    for chunk in response:
+                        f.write(chunk)
+                    localURI = localAttachmentPath
+                if relativePathsCheckBox.isChecked():
+                    return os.path.relpath(localURI,QgsProject.instance().readPath("./"))
+                else:
+                    return localURI
+            else:
+                print 'error downloading remote file: ',response.reason
+                return 'error downloading remote file: ',response.reason
+        else:
+            return URI
+
 
     def updateLayer(self,layer,dataDict):
         self.processingLayer = layer
@@ -235,7 +273,8 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                 
         layer.addFeatures(newQgisFeatures)
         self.processingLayer = None
-        
+
+
     def guessWKTGeomType(self,geom):
         coordinates = geom.split(';')
         firstCoordinate = coordinates[0].strip().split(" ")

@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>AuthBrowser</class>
- <widget class="QDialog" name="AuthBrowser">
+ <class>InternalBrowser</class>
+ <widget class="QDialog" name="InternalBrowser">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>831</width>
-    <height>500</height>
+    <width>968</width>
+    <height>517</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -47,7 +47,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>accepted()</signal>
-   <receiver>AuthBrowser</receiver>
+   <receiver>InternalBrowser</receiver>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
@@ -63,7 +63,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
-   <receiver>AuthBrowser</receiver>
+   <receiver>InternalBrowser</receiver>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">

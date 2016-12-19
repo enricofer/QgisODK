@@ -35,7 +35,7 @@ import io
 import time
 
 # Import the code for the dialog
-from QgisODK_mod_dialog import QgisODKDialog, QgisODKServices
+from QgisODK_mod_dialog import QgisODKDialog, QgisODKServices, internalBrowser
 import os.path
 from pyxform.builder import create_survey_element_from_dict
 from json_form_schema import json_test, dict_test
@@ -74,6 +74,7 @@ class QgisODK:
         # Create the dialog (after translation) and keep reference
         self.dlg = QgisODKDialog(self)
         self.settingsDlg = QgisODKServices(self)
+        self.helpBrowser = internalBrowser("http://documentup.com/enricofer/QgisODK")
         #self.importCollectedData = QgisODKImportCollectedData()
 
         # Declare instance attributes
@@ -202,6 +203,7 @@ class QgisODK:
         self.dlg.ODKloadButton.clicked.connect(self.ODKLoadLayerStateAction)
         self.dlg.addFieldButton.clicked.connect(self.addODKField)
         self.dlg.removeFieldButton.clicked.connect(self.removeODKField)
+        self.dlg.helpToolButton.clicked.connect(self.helpAction)
 
 
     def unload(self):
@@ -218,6 +220,10 @@ class QgisODK:
     def openSettings(self):
         self.settingsDlg.show()
         self.settingsDlg.raise_()
+
+    def helpAction(self):
+        self.helpBrowser.show()
+        self.helpBrowser.raise_()
 
     def ODKSaveLayerStateAction(self):
 

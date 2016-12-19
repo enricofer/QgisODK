@@ -13,67 +13,102 @@
   <property name="windowTitle">
    <string>Import collected data</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
-   <item>
-    <widget class="QCheckBox" name="downloadCheckBox">
-     <property name="text">
-      <string>Download attachments</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QCheckBox" name="syncroCheckBox">
-     <property name="text">
-      <string>Syncronize with existing layer</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QComboBox" name="layerComboBox">
-     <property name="editable">
-      <bool>false</bool>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QTableWidget" name="fieldTable">
-     <property name="columnCount">
-      <number>3</number>
-     </property>
-     <attribute name="horizontalHeaderVisible">
-      <bool>true</bool>
-     </attribute>
-     <attribute name="horizontalHeaderShowSortIndicator" stdset="0">
-      <bool>true</bool>
-     </attribute>
-     <column>
-      <property name="text">
-       <string/>
-      </property>
-     </column>
-     <column>
-      <property name="text">
-       <string>ODK</string>
-      </property>
-     </column>
-     <column>
-      <property name="text">
-       <string>QGis</string>
-      </property>
-     </column>
-    </widget>
-   </item>
-   <item>
-    <widget class="QDialogButtonBox" name="buttonBox">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
-     </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
-     </property>
-    </widget>
-   </item>
-  </layout>
+  <widget class="QDialogButtonBox" name="buttonBox">
+   <property name="geometry">
+    <rect>
+     <x>9</x>
+     <y>517</y>
+     <width>160</width>
+     <height>25</height>
+    </rect>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Horizontal</enum>
+   </property>
+   <property name="standardButtons">
+    <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="syncroCheckBox">
+   <property name="geometry">
+    <rect>
+     <x>9</x>
+     <y>9</y>
+     <width>166</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Syncronize with existing layer</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="layerComboBox">
+   <property name="geometry">
+    <rect>
+     <x>9</x>
+     <y>33</y>
+     <width>301</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="editable">
+    <bool>false</bool>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="downloadCheckBox">
+   <property name="geometry">
+    <rect>
+     <x>9</x>
+     <y>469</y>
+     <width>134</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Download attachments</string>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="relativePathsCheckBox">
+   <property name="geometry">
+    <rect>
+     <x>9</x>
+     <y>493</y>
+     <width>156</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Store project relative paths</string>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QTableWidget" name="fieldTable">
+   <property name="geometry">
+    <rect>
+     <x>9</x>
+     <y>59</y>
+     <width>301</width>
+     <height>401</height>
+    </rect>
+   </property>
+   <column>
+    <property name="text">
+     <string>uno</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>due</string>
+    </property>
+   </column>
+   <column>
+    <property name="text">
+     <string>tre</string>
+    </property>
+   </column>
+  </widget>
  </widget>
  <resources/>
  <connections>

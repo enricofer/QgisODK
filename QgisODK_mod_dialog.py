@@ -32,7 +32,7 @@ import csv
 
 from PyQt4 import QtGui, uic
 from PyQt4.QtGui import QTableWidget, QWidget, QTableWidgetItem, QSizePolicy, QMessageBox
-from PyQt4.QtCore import Qt, QSettings, QSize, QSettings, QTranslator, qVersion, QCoreApplication, QTimer
+from PyQt4.QtCore import Qt, QSettings, QSize, QSettings, QTranslator, qVersion, QCoreApplication, QTimer, QUrl
 from qgis.core import QgsProject, QgsMapLayerRegistry, QgsNetworkAccessManager
 from qgis.gui import QgsMessageBar
 from email.mime.text import MIMEText
@@ -43,7 +43,7 @@ from QgisODK_mod_dialog_base import Ui_QgisODKDialogBase
 from QgisODK_mod_dialog_services import Ui_ServicesDialog
 from QgisODK_mod_dialog_import import Ui_ImportDialog
 from QgisODK_mod_dialog_choices import Ui_ChoicesDialog
-from QgisODK_mod_dialog_browser import Ui_AuthBrowser
+from QgisODK_mod_dialog_browser import Ui_InternalBrowser
 
 from fields_tree import slugify
 from dateutil.parser import parse
@@ -74,20 +74,25 @@ class QgisODKDialog(QtGui.QDialog, Ui_QgisODKDialogBase):
         self.ODKloadButton.setIcon(loadIcon)
 
 
-class authBrowser(QtGui.QDialog, Ui_AuthBrowser):
+class internalBrowser(QtGui.QDialog, Ui_InternalBrowser):
 
-    def __init__(self, html, parent = None):
-        super(authBrowser, self).__init__(parent)
+    def __init__(self, target, parent = None):
+        super(internalBrowser, self).__init__(parent)
         self.setupUi(self)
-        self.webView.setHtml(html)
-        self.timer = QTimer()
-        self.timer.setInterval(500)
-        self.timer.timeout.connect(self.codeProbe)
-        self.timer.start()
-        self.show()
-        self.raise_()
-        self.auth_code = None
         #self.webView.page().setNetworkAccessManager(QgsNetworkAccessManager.instance())
+        if target[0:4] == 'http':
+            self.setWindowTitle('Help')
+            self.webView.setUrl(QUrl(target))
+        else:
+            self.setWindowTitle('Auth')
+            self.webView.setHtml(target)
+            self.timer = QTimer()
+            self.timer.setInterval(500)
+            self.timer.timeout.connect(self.codeProbe)
+            self.timer.start()
+            self.auth_code = None
+            self.show()
+            self.raise_()
 
     def codeProbe(self):
         frame = self.webView.page().mainFrame()
@@ -107,7 +112,7 @@ class authBrowser(QtGui.QDialog, Ui_AuthBrowser):
 
     @staticmethod
     def getCode(html,loginHint, title=""):
-        dialog = authBrowser(html)
+        dialog = internalBrowser(html)
         dialog.patchLoginHint(loginHint)
         result = dialog.exec_()
         dialog.timer.stop()
@@ -690,7 +695,10 @@ https://docs.google.com/spreadsheets/d/%s/edit
             return response.json()
         else:
             return None
-        
+
+
+    def getAvailableDataCollections(self):
+        pass
 
     def createNew(self, name, mimeType, parentsId = None):
         if not self.authorization:
@@ -724,7 +732,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
         }
         response = requests.post('https://accounts.google.com/o/oauth2/v2/auth', params=verification_params)
         if response.status_code == requests.codes.ok:
-            self.verification = authBrowser.getCode(response.text, self.getValue('google drive login'))
+            self.verification = internalBrowser.getCode(response.text, self.getValue('google drive login'))
 
 
     def get_authorization(self): #phase 2 oauth2
@@ -738,21 +746,16 @@ https://docs.google.com/spreadsheets/d/%s/edit
             'grant_type': 'authorization_code',
             'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob:auto'
         }
-        print authorization_params
         response = requests.post('https://www.googleapis.com/oauth2/v4/token', params=authorization_params)
-        print response.json()
         if response.status_code == requests.codes.ok:
             authorization = response.json()
-            print "ok"
             if 'error' in authorization:
                 QMessageBox().warning(None,"Google authorization error", "Google authorization error: %s" % authorization['error'])
                 self.verification = None
                 self.authorization = None
             else:
-                print "authorized"
                 self.authorization = authorization
         elif response.status_code == 401: # token expired
-            print "expired"
             refresh_params =  {
                 'client_id': self.client_id,
                 'client_secret': self.client_secret,
@@ -761,7 +764,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             }
 
         else:
-            print response.text
+            pass #print response.reason
 
     def getLayer(self):
         if self.getValue("data collection table ID") == '':
@@ -785,13 +788,11 @@ https://docs.google.com/spreadsheets/d/%s/edit
             layer = self.iface.addVectorLayer(os.path.join(workDir, layerName), layerName[:-8], "ogr")
             QgsMapLayerRegistry.instance().addMapLayer(layer)
         else:
-            print response.text
             self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("error loading csv table %s, %s.") % (
             response.status_code, response.reason), level=QgsMessageBar.CRITICAL, duration=6)
 
 
     def getLayerFromTable(self,remoteData):
-        print "GETLAYER:", remoteData
         geojson = {
             "type": "FeatureCollection",
             "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
@@ -811,7 +812,6 @@ https://docs.google.com/spreadsheets/d/%s/edit
                 # build geojson geometry
                 jsonCoordinates = []
                 for geomCoordinate in geomCoordinates:
-                    print geomCoordinate
                     jsonCoordinates.append([float(geomCoordinate[1]), float(geomCoordinate[0])])
                 if geomType == 'Point':
                     feature["geometry"]["coordinates"] = [jsonCoordinates[0][0], jsonCoordinates[0][1]]
@@ -856,14 +856,12 @@ https://docs.google.com/spreadsheets/d/%s/edit
             csvList = []
             for row in csvIn:
                 csvList.append(row)
-                print row
             geometryField = ''
             for field in csvList[0].keys():
                 if 'GEOMETRY' in field.upper():
                     geometryField = field
                     prefix = field[:-8]
                     len_prefix = len(field)-8
-            print "PREFIX:",prefix, len_prefix
             newCsvList = []
             for row in csvList:
                 newRow = {}
@@ -892,12 +890,10 @@ https://docs.google.com/spreadsheets/d/%s/edit
         if fileId: 
             method = "PATCH"
             url = 'https://www.googleapis.com/upload/drive/v3/files/%s?uploadType=multipart' % fileId
-            print "UPDATE", xForm_id
         else:
             method = "POST"
             url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart'
             metadata['parents'] = [folderId]
-            print "CREATE", xForm_id
         
         headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token']) }
 
@@ -908,7 +904,6 @@ https://docs.google.com/spreadsheets/d/%s/edit
         files = {'data':data, 'file':file }
         response = requests.request(method, url, headers = headers, files = files )
 
-        #print response.json()
         if response.status_code == 200:
             content_table_id = self.createNew(xForm_id[:-4]+"-collect-table",'application/vnd.google-apps.spreadsheet', parentsId=folderId)
             self.shareFileWithCollectors(response.json()['id'],role='reader')

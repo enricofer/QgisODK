@@ -2,7 +2,7 @@
 
 ![](icon.svg) 
 
-The Qgis plugin allows to build a "on field" mobile survey in minutes starting from a Qgis layer and get back collected data with the help of Open Data Kit tools and services. 
+The Qgis plugin allows to build a "on field" mobile survey in few minutes starting from a Qgis layer and get back collected data with the help of Open Data Kit tools and services. 
 [Open Data Kit (ODK)](https://opendatakit.org/) is a free and open-source set of tools which help to manage mobile data collection solutions. 
 
 The typical ODK collection workflow is based on the following activities:
@@ -198,9 +198,8 @@ As the collectors send back collected data ona.io database is updated:
 
 We are now ready to retrieve data to Qgis pushing "import collected data" button.
 The requested data are enriched with a set of metadata related to survey, as submission time, instance UUID to avoid data replication, and geometry fields.
-The plugin make use of field mapping that associates ODK field names with Qgis fields name, so ODK field can be renamed without loging the relation with the original layer.
 
-![](doc/12-data-collection.png)
+![](doc/05-metadata.png.png)
 
 ## 5 QgisODK and google drive
 
@@ -224,3 +223,12 @@ Pushing "export to web service" button in main dialog, the user will be prompted
 
 ![](doc/15-odk-collect3.png)
 
+## 6 Importing Collected Data
+
+Once survey activity started, the survey admin can import collected data pushing on "import collected data" button. The user select the available table to be imported (only with Ona.io) then configure import parameters in the data in the "import collected data" dialog.
+
+![](doc/16-import-collected-data-table.png)
+
+The table can be simply imported or syncronized with an existing layer. In the first case a new layer will be created, in the latter data in the existing layer will be integreted with new data from odk provider. In this case the layer will be set to edited and charged with the new features. A new field called "ODK-UUID" is appended to Qgis Table allowing check to avoid duplicate data.
+The first colums of the table enable or disable importing of the field on the right, the second column report all available ODK fields and the third one report the correspondant Qgis field if found. Doing so ODK fields can be mapped to existing Qgis fields.
+The last feature option is the ability to download locally the files attached to the survey forms such as images, signatures, videos or audios. The local path can be stored as absolute paths or relative to the project one.

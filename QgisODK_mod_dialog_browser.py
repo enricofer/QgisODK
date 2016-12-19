@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'Z:\dev\qgisODK\QgisODK_mod_dialog_browser.ui'
 #
-# Created: Mon Dec 05 14:11:33 2016
+# Created: Mon Dec 19 13:25:29 2016
 #      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -23,28 +23,28 @@ except AttributeError:
     def _translate(context, text, disambig):
         return QtGui.QApplication.translate(context, text, disambig)
 
-class Ui_AuthBrowser(object):
-    def setupUi(self, AuthBrowser):
-        AuthBrowser.setObjectName(_fromUtf8("AuthBrowser"))
-        AuthBrowser.resize(831, 500)
-        self.verticalLayout = QtGui.QVBoxLayout(AuthBrowser)
+class Ui_InternalBrowser(object):
+    def setupUi(self, InternalBrowser):
+        InternalBrowser.setObjectName(_fromUtf8("InternalBrowser"))
+        InternalBrowser.resize(968, 517)
+        self.verticalLayout = QtGui.QVBoxLayout(InternalBrowser)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
-        self.webView = QtWebKit.QWebView(AuthBrowser)
+        self.webView = QtWebKit.QWebView(InternalBrowser)
         self.webView.setUrl(QtCore.QUrl(_fromUtf8("about:blank")))
         self.webView.setObjectName(_fromUtf8("webView"))
         self.verticalLayout.addWidget(self.webView)
-        self.buttonBox = QtGui.QDialogButtonBox(AuthBrowser)
+        self.buttonBox = QtGui.QDialogButtonBox(InternalBrowser)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
         self.buttonBox.setStandardButtons(QtGui.QDialogButtonBox.Cancel|QtGui.QDialogButtonBox.Ok)
         self.buttonBox.setObjectName(_fromUtf8("buttonBox"))
         self.verticalLayout.addWidget(self.buttonBox)
 
-        self.retranslateUi(AuthBrowser)
-        QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("accepted()")), AuthBrowser.accept)
-        QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("rejected()")), AuthBrowser.reject)
-        QtCore.QMetaObject.connectSlotsByName(AuthBrowser)
+        self.retranslateUi(InternalBrowser)
+        QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("accepted()")), InternalBrowser.accept)
+        QtCore.QObject.connect(self.buttonBox, QtCore.SIGNAL(_fromUtf8("rejected()")), InternalBrowser.reject)
+        QtCore.QMetaObject.connectSlotsByName(InternalBrowser)
 
-    def retranslateUi(self, AuthBrowser):
-        AuthBrowser.setWindowTitle(_translate("AuthBrowser", "Authentication", None))
+    def retranslateUi(self, InternalBrowser):
+        InternalBrowser.setWindowTitle(_translate("InternalBrowser", "Authentication", None))
 
 from PyQt4 import QtWebKit

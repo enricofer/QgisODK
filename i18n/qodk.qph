@@ -160,4 +160,8 @@
     <source>Remove Field</source>
     <target>Rimuovi campo</target>
 </phrase>
+<phrase>
+    <source>Value/label table</source>
+    <target>corrispondenze Valori/etichette</target>
+</phrase>
 </QPH>

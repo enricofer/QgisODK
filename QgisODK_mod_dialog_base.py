@@ -2,12 +2,13 @@
 
 # Form implementation generated from reading ui file 'Z:\dev\qgisODK\QgisODK_mod_dialog_base.ui'
 #
-# Created: Wed Dec 07 14:33:14 2016
+# Created: Mon Dec 19 13:09:49 2016
 #      by: PyQt4 UI code generator 4.11.3
 #
 # WARNING! All changes made in this file will be lost!
 
 from PyQt4 import QtCore, QtGui
+
 from fields_tree import ODK_fields
 
 try:
@@ -27,7 +28,7 @@ except AttributeError:
 class Ui_QgisODKDialogBase(object):
     def setupUi(self, QgisODKDialogBase):
         QgisODKDialogBase.setObjectName(_fromUtf8("QgisODKDialogBase"))
-        QgisODKDialogBase.resize(881, 368)
+        QgisODKDialogBase.resize(887, 368)
         self.verticalLayout = QtGui.QVBoxLayout(QgisODKDialogBase)
         self.verticalLayout.setObjectName(_fromUtf8("verticalLayout"))
         self.horizontalLayout_2 = QtGui.QHBoxLayout()
@@ -64,6 +65,15 @@ class Ui_QgisODKDialogBase(object):
         self.settingsToolButton.setIconSize(QtCore.QSize(16, 16))
         self.settingsToolButton.setObjectName(_fromUtf8("settingsToolButton"))
         self.horizontalLayout_2.addWidget(self.settingsToolButton)
+        self.helpToolButton = QtGui.QToolButton(QgisODKDialogBase)
+        self.helpToolButton.setMinimumSize(QtCore.QSize(24, 24))
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        font.setBold(True)
+        font.setWeight(75)
+        self.helpToolButton.setFont(font)
+        self.helpToolButton.setObjectName(_fromUtf8("helpToolButton"))
+        self.horizontalLayout_2.addWidget(self.helpToolButton)
         self.verticalLayout.addLayout(self.horizontalLayout_2)
         self.treeView = ODK_fields(QgisODKDialogBase)
         self.treeView.setObjectName(_fromUtf8("treeView"))
@@ -75,10 +85,10 @@ class Ui_QgisODKDialogBase(object):
         self.addGroupButton.setObjectName(_fromUtf8("addGroupButton"))
         self.horizontalLayout.addWidget(self.addGroupButton)
         self.addFieldButton = QtGui.QPushButton(QgisODKDialogBase)
-        self.addFieldButton.setObjectName(_fromUtf8("pushButton"))
+        self.addFieldButton.setObjectName(_fromUtf8("addFieldButton"))
         self.horizontalLayout.addWidget(self.addFieldButton)
         self.removeFieldButton = QtGui.QPushButton(QgisODKDialogBase)
-        self.removeFieldButton.setObjectName(_fromUtf8("pushButton_2"))
+        self.removeFieldButton.setObjectName(_fromUtf8("removeFieldButton"))
         self.horizontalLayout.addWidget(self.removeFieldButton)
         spacerItem1 = QtGui.QSpacerItem(40, 20, QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Minimum)
         self.horizontalLayout.addItem(spacerItem1)
@@ -111,6 +121,7 @@ class Ui_QgisODKDialogBase(object):
         self.ODKloadButton.setText(_translate("QgisODKDialogBase", "L", None))
         self.settingsToolButton.setToolTip(_translate("QgisODKDialogBase", "Open Data Kit plugin general settings", None))
         self.settingsToolButton.setText(_translate("QgisODKDialogBase", "...", None))
+        self.helpToolButton.setText(_translate("QgisODKDialogBase", "?", None))
         self.addGroupButton.setText(_translate("QgisODKDialogBase", "Add Group", None))
         self.addFieldButton.setText(_translate("QgisODKDialogBase", "Add Field", None))
         self.removeFieldButton.setText(_translate("QgisODKDialogBase", "Remove Field", None))

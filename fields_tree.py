@@ -252,7 +252,7 @@ class ODK_fields(QTreeView):
         group_item.setDragEnabled(True)
         group_item.setCheckable(True)
         group_item.setCheckState(Qt.Checked)
-        group_item.setIcon(QIcon(os.path.join(os.path.dirname(__file__),"load.png")))
+        group_item.setIcon(QIcon(os.path.join(os.path.dirname(__file__),"group.png")))
         model.appendRow([group_item])
         if not name:
             self.setCurrentIndex(model.indexFromItem(group_item))
@@ -506,9 +506,10 @@ class ODK_fields(QTreeView):
             self.tableDef['survey'].append(['begin group',groupName,groupLabel,None,None,None,None,"field-list",None,None,None,None])
         for count in range (0, model.itemFromIndex(groupIndex).rowCount()):
             childRow = model.itemFromIndex(groupIndex.child(count,0))
-            itemStructure = self.renderItemStructure(childRow.index(), output = output, service = service)
-            itemStructure['fieldEnabled'] = childRow.checkState() == Qt.Checked
-            childrenList.append(itemStructure)
+            if childRow.checkState() == Qt.Checked or output == 'backup':
+                itemStructure = self.renderItemStructure(childRow.index(), output = output, service = service)
+                itemStructure['fieldEnabled'] = childRow.checkState() == Qt.Checked
+                childrenList.append(itemStructure)
         if groupName != 'metadata' and output == 'table':
             self.tableDef['survey'].append(['end group',groupName,None,None,None,None,None,None,None,None,None,None])
         if output in ('dict', 'backup', 'fieldMap'):
@@ -529,7 +530,10 @@ class ODKDelegate(QItemDelegate):
         if index.row() != 0:
             topLeft = option.rect.topLeft()
             topRight = option.rect.topRight()
+            bottomLeft = option.rect.bottomLeft()
+            bottomRight = option.rect.bottomRight()
             painter.drawLine(topLeft,topRight)
+            #painter.drawLine(bottomLeft,bottomRight)
         QItemDelegate.paint(self, painter, option, index)
 
     def setModelData(self, editor, model, index):
@@ -704,5 +708,4 @@ class fieldItem(QStandardItem):
             else:
                 raise AttributeError("Can't cast QVariant to ODKType: " + field['fieldType'])
         return itemType
-
 
