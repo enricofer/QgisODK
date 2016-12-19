@@ -10,11 +10,17 @@
 name=QgisODK
 qgisMinimumVersion=2.14
 description=GeoODK integration for on-filed data collection
-version=0.1
+version=1.0
 author=Enrico Ferreguti
 email=enricofer@gmail.com
 
-about=GeoODK integration for on-filed data collection ABOUT 1 ABOUT 2....
+about=The Qgis plugin allows to build a "on field" mobile survey in minutes starting from a Qgis layer and get back collected data with the help of Open Data Kit tools and services. Open Data Kit (ODK) https://opendatakit.org/ is a free and open-source set of tools which help to manage mobile data collection solutions.
+  The typical ODK collection workflow is based on the following activities:
+  - survey form design (XlsForm/XForm)
+  - deployment of survey forms on ODK collect Android App
+  - on field data collection by a mobile device
+  - data aggregation on server
+
 
 tracker=https://github.com/enricofer/QgisODK/issues
 repository=https://github.com/enricofer/QgisODK
@@ -26,7 +32,7 @@ repository=https://github.com/enricofer/QgisODK
 # changelog=
 
 # Tags are comma separated with spaces allowed
-tags=geoodk ODK data collection onfield
+tags=geoodk ODK data collection onfield survey
 
 homepage=https://github.com/enricofer/QgisODK
 category=Plugins
