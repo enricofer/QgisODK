@@ -6,7 +6,7 @@ from collections import defaultdict
 import codecs
 from datetime import datetime
 import re
-from odk_validate import check_xform
+#from odk_validate import check_xform
 from survey_element import SurveyElement
 from errors import PyXFormError
 import constants
