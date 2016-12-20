@@ -32,97 +32,28 @@ Switching to QgisODK from menu, toolbar or layer context menu appears the main d
 
 The generated table is ready to be exported or submitted, but it can be edited to customize contents and behaviours of the ODK form. In this case fields with default Edit Widget (TextEdit widget) are casted to the respective ODK types: *integer*, *decimal*, *text* and *datetime*. The following table describes ODK types, or Question types as mentioned in ODK documentation:
 
-<table>
-    <tr>
-      <td><strong>Question type</strong></td>
-      <td><strong>Answer input</strong></td>
-    </tr>
-    <tr>
-      <td>integer</td>
-      <td>Integer (i.e., whole number) input.</td>
-    </tr>
-    <tr>
-      <td>decimal</td>
-      <td>Decimal input.</td>
-    </tr>
-    <tr>
-      <td>text</td>
-      <td>Free text response.</td>
-    </tr>
-    <tr>
-      <td>select_one [options]</td>
-      <td>Multiple choice question; only one answer can be selected.</td>
-    </tr>
-    <tr>
-      <td>select_multiple [options]</td>
-      <td>Not supported by QgisODK plugin.</td>
-    </tr>
-    <tr>
-      <td>note</td>
-      <td>Not supported by QgisODK plugin</td>
-    </tr>
-    <tr>
-      <td>geopoint</td>
-      <td>Collect a single GPS coordinates.</td>
-    </tr>
-    <tr>
-      <td>geotrace</td>
-      <td>Record a line of two or more GPS coordinates.</td>
-    </tr>
-    <tr>
-      <td>geoshape</td>
-      <td>Record a polygon of multiple GPS coordinates; the last point is the same as the first point.</td>
-    </tr>
-    <tr>
-      <td>date</td>
-      <td>Date input.</td>
-    </tr>
-    <tr>
-      <td>time</td>
-      <td>Time input.</td>
-    </tr>
-    <tr>
-      <td>dateTime</td>
-      <td>Accepts a date and a time input.</td>
-    </tr>
-    <tr>
-      <td>image</td>
-      <td>Take a picture.</td>
-    </tr>
-    <tr>
-      <td>audio</td>
-      <td>Take an audio recording.</td>
-    </tr>
-    <tr>
-      <td>video</td>
-      <td>Take a video recording.</td>
-    </tr>
-    <tr>
-      <td>barcode</td>
-      <td>Scan a barcode, requires the barcode scanner app to be installed.</td>
-    </tr>
-    <tr>
-      <td>calculate</td>
-      <td>Not supported by QgisODK plugin</td>
-    </tr>
-    <tr>
-      <td>acknowledge</td>
-      <td>Not supported by QgisODK plugin</td>
-    </tr>    
-    <tr>
-      <td></td>
-      <td></td>
-    </tr>
-    <tr>
-      <td></td>
-      <td></td>
-    </tr>
-    <tr>
-      <td></td>
-      <td>further details on ODK types and their usage in <a href="http://xlsform.org/ref-table/">http://xlsform.org/ref-table/</td>
-    </tr>
-</table>
+| Question type  | Answer input  |
+| -------------- | ------------- |
+| integer        | Integer (i.e., whole number) input. |
+| decimal        | Decimal input. |
+| text | Free text response.</td> |
+| select_one [options] | Multiple choice question; only one answer can be selected. | 
+| select_multiple [options] | Not supported by QgisODK plugin. |
+| note | Not supported by QgisODK plugin | 
+| geopoint | Collect a single GPS coordinates. |
+| geotrace | Record a line of two or more GPS coordinates. |
+| geoshape | Record a polygon of multiple GPS coordinates; the last point is the same as the first point.| 
+| date | Date input. | 
+| time | Time input. | 
+| dateTime | Accepts a date and a time input. |
+| image | Take a picture. | 
+| audio | Take an audio recording. | 
+| video | Take a video recording. | 
+| barcode | Scan a barcode, requires the barcode scanner app to be installed. | 
+| calculate | Not supported by QgisODK plugin | 
+| acknowledge| Not supported by QgisODK plugin | 
 
+further details on ODK types and their usage in <a href="http://xlsform.org/ref-table/">http://xlsform.org/ref-table/
 
 
 ## 2 the main dialog window 
