@@ -26,7 +26,7 @@ import json
 import time
 import requests
 
-from PyQt4 import QtGui, uic
+from PyQt4 import QtGui
 from PyQt4.QtGui import QTableWidgetItem, QSizePolicy, QItemDelegate, QComboBox, QLineEdit, QFileDialog
 from PyQt4.QtCore import Qt, QSize, QSettings, QTranslator, qVersion, QCoreApplication, QFileInfo,QVariant
 from QgisODK_mod_dialog_collect import Ui_dataCollectDialog

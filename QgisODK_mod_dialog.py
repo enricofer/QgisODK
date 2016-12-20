@@ -30,7 +30,7 @@ import base64
 import StringIO
 import csv
 
-from PyQt4 import QtGui, uic
+from PyQt4 import QtGui
 from PyQt4.QtGui import QTableWidget, QWidget, QTableWidgetItem, QSizePolicy, QMessageBox
 from PyQt4.QtCore import Qt, QSettings, QSize, QSettings, QTranslator, qVersion, QCoreApplication, QTimer, QUrl
 from qgis.core import QgsProject, QgsMapLayerRegistry, QgsNetworkAccessManager
@@ -47,9 +47,6 @@ from QgisODK_mod_dialog_browser import Ui_InternalBrowser
 
 from fields_tree import slugify
 from dateutil.parser import parse
-
-FORM_CLASS, _ = uic.loadUiType(os.path.join(
-    os.path.dirname(__file__), 'QgisODK_mod_dialog_base.ui'))
 
 
 class QgisODKDialog(QtGui.QDialog, Ui_QgisODKDialogBase):

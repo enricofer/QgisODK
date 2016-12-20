@@ -350,18 +350,19 @@ class ODK_fields(QTreeView):
     def getFieldMappingDict(self):
         fieldMapping = {}
         model = self.model()
-        for count in range (0, model.rowCount()):
-            childRow = model.item(count)
-            if childRow.rowCount() > 0 and childRow.checkState() == Qt.Checked: #exclude void groups and not enabled
-                probeSubChildRow = model.data(model.index(0,3,childRow.index()),Qt.DisplayRole)
-                if probeSubChildRow: #is fieldItem
-                    dict = self.renderItemStructure(childRow.index(), output = 'backup')
-                    fieldMapping[dict['fieldName']] = dict['fieldMap']
-                else: #is groupItem
-                    dict = self.renderGroupStructure(childRow.index(), output = 'backup')
-                    for item in dict['children']:
-                        fieldMapping[item['fieldName']] = item['fieldMap']
-        return fieldMapping
+        if model:
+            for count in range (0, model.rowCount()):
+                childRow = model.item(count)
+                if childRow.rowCount() > 0 and childRow.checkState() == Qt.Checked: #exclude void groups and not enabled
+                    probeSubChildRow = model.data(model.index(0,3,childRow.index()),Qt.DisplayRole)
+                    if probeSubChildRow: #is fieldItem
+                        dict = self.renderItemStructure(childRow.index(), output = 'backup')
+                        fieldMapping[dict['fieldName']] = dict['fieldMap']
+                    else: #is groupItem
+                        dict = self.renderGroupStructure(childRow.index(), output = 'backup')
+                        for item in dict['children']:
+                            fieldMapping[item['fieldName']] = item['fieldMap']
+            return fieldMapping
 
 
     def renderToTable(self, title=None):

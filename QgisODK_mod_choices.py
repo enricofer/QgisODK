@@ -24,7 +24,7 @@
 import os
 import json
 
-from PyQt4 import QtGui, uic
+from PyQt4 import QtGui
 from PyQt4.QtGui import QTableWidgetItem, QSizePolicy
 from PyQt4.QtCore import Qt, QSize, QSettings, QTranslator, qVersion, QCoreApplication
 from QgisODK_mod_dialog_choices import Ui_ChoicesDialog
