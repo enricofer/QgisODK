@@ -306,7 +306,7 @@ class external_service(QTableWidget):
             pValue = QTableWidgetItem (parameter[1])
             self.setItem(row,0,pKey)
             valueFromSettings = S.value("qgisodk/%s/%s/" % (self.service_id,self.item(row,0).text()), defaultValue =  "undef")
-            if valueFromSettings == "undef":
+            if not valueFromSettings or valueFromSettings == "undef":
                 self.setItem(row,1,pValue)
                 S.setValue("qgisodk/%s/%s/" % (self.service_id,self.item(row,0).text()),parameter[1])
             else:

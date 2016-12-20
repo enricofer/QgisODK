@@ -10,7 +10,7 @@
 name=QgisODK
 qgisMinimumVersion=2.14
 description=GeoODK integration for on-filed data collection
-version=1.1
+version=1.3
 author=Enrico Ferreguti
 email=enricofer@gmail.com
 
@@ -30,9 +30,11 @@ repository=https://github.com/enricofer/QgisODK
 
 # Uncomment the following line and add your changelog:
 # changelog=1.1 ODK_validate wrapper removed
+  1.2 missing UI files issue fixed
+  1.3 python exception on plugin initialization under MacOs fixed
 
 # Tags are comma separated with spaces allowed
-tags=geoodk ODK data collection onfield survey
+tags= ODK, open data kit,data collection, collection, on field, onfield, mobile, android, survey
 
 homepage=https://github.com/enricofer/QgisODK
 category=Plugins
