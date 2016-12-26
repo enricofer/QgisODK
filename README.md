@@ -1,14 +1,6 @@
 # QGISODK #
 
-- [1 About the plugin](#1-about-the-plugin)
-- [2 Survey design from layer properties](#2-survey-design-from-layer-properties)
-- [3 The main dialog window](#3-the-main-dialog-window)
-- [4 Exporting the form](#4-exporting-the-form)
-- [5 QGISODK and ona.io](#5-qgisodk-and-onaio)
-- [6 QgisODK and google drive](#6-qgisodk-and-google-drive)
-- [7 Importing Collected Data](#7-importing-collected-data)
-
-##1 About the plugin
+## 1 About the plugin
 ![](icon.svg) 
 
 The QGIS plugin allows to build a "on field" mobile survey in few minutes starting from a QGIS layer and get back collected data with the help of Open Data Kit tools and services. 
@@ -31,7 +23,7 @@ The QgisODK plugin generates forms (XlsForm/XForm) directly from loaded datasour
 
 Let's follow a QGISODK survey from form creation to data retrieving
 
-##2 Survey design from layer properties 
+## 2 Survey design from layer properties 
 
 Design layer properties structure editing the forms tab under qgis layer properties. In this tab fields can be added defining their data type. Furthermore each field can be associated with a specific "edit widget", the other field properties (comment, alias, WMF, WMS) are not significant for the QGISODK plugin. In this case the first field 'OBJECTID' is set to Hidden widget, the fields 'SETTORE' and 'CATEGORIA' are set to a Value Map widget, the fields 'VETRINA' and 'INSEGNA' are set to Photo widget and all the others are set to Text edit widget (default)
 
@@ -65,7 +57,7 @@ The generated table is ready to be exported or submitted, but it can be edited t
 further details on ODK types and their usage in <a href="http://xlsform.org/ref-table/">http://xlsform.org/ref-table/
 
 
-##3 The main dialog window 
+## 3 The main dialog window 
 
 Fields associated to other Edit widgets are adapted to specific ODK types: CheckBox and ValueMap widgets are converted in *select one* ODK type translating the user defined values into ODK *choices*. Hidden edit widget are imported as disabled fields.
 Different ODK types define different behaviours in survey forms once imported in mobile device. [Here](https://opendatakit.org/help/form-design/examples/) are reported examples the results in the mobile device for each ODK type prompt.
@@ -104,13 +96,13 @@ Single items are showed one by one in mobile app, while grouped items are showed
 ![](doc/4-mainDialog-group.png)
 
 
-##4 Exporting the form
+## 4 Exporting the form
 
 Once organized and rearranged survey fileds, they can be exported for the deployment in the collectors devices. The plugin can export XForm for the direct copy on mobile devioce, XlsForm, which is indeed an Excel spreadsheet and can be directy modified furthermore to implement ODK feature not yet implemented by the plugin or uploaded manually to a ODK-aggregate server that could be installed by the user ([ODK-aggregate](https://opendatakit.org/use/aggregate/) or [FormHub](https://github.com/SEL-Columbia/formhub)), to a ODK cloud server ([ona.io](http://www.ona.io/), [SurveyCTO](http://www.surveycto.com/), a discontinued [FormHub](http://formhub.org/), etc ) or directy upload/download to personal Google Drive/Sheets 
 
 At the moment the plugin supports ona.io, with direct simple http authentication and google drive with OAuth2 authentication
 
-##5 QGISODK and ona.io
+## 5 QGISODK and ona.io
 
 Ona.io is a complete ODK-aggregate service that offers at the moment a free access for 1 private form and for unlimited public forms. The users, the survey admin and the other contributors must sign up to ona.io and subscribe an account. Furthermore survey project have to be shared among data contributors giving proper permissions (can submit, can admim, can edit ...).  Once logged in we must annotate the project ID used for forms uploading that can be retrieved from the project URL. In this case the project ID of the project is 26283:
 
@@ -141,7 +133,7 @@ The requested data are enriched with a set of metadata related to survey, as sub
 
 ![](doc/05-metadata.png.png)
 
-##6 QGISODK and google drive
+## 6 QGISODK and google drive
 
 As alternative to Ona.io, QGISODK plugin can use Google drive as support server. In this case the export/import procedure is slightly different. Google drive tab has to be fill and set:
 
@@ -163,9 +155,9 @@ Pushing "export to web service" button in main dialog, the user will be prompted
 
 ![](doc/15-odk-collect3.png)
 
-##7 Importing Collected Data
+## 7 Importing Collected Data
 
-Once survey activity started, the survey admin can import collected data pushing on "import collected data" button. The user select the available table to be imported (only with Ona.io) then configure import parameters in the data in the "import collected data" dialog.
+Once survey activity started, the survey admin can import collected data pushing on "import collected data" button. The user select the table to be imported from the available ones, then configure import parameters in the data in the "import collected data" dialog.
 
 ![](doc/16-import-collected-data-table.png)
 
