@@ -450,9 +450,14 @@ class ona(external_service):
         interactive table selection
         '''
         XFormID = QgisODKImportCollectedData.getXFormID(self)
-        XFormKey, response = self.formIDToPk(XFormID)
-        response, remoteTable = self.getTable(XFormKey)
-        self.importDataFromService.view(XFormID, remoteTable)
+        if XFormID:
+            XFormKey, response = self.formIDToPk(XFormID)
+            response, remoteTable = self.getTable(XFormKey)
+            self.importDataFromService.view(XFormID, remoteTable)
+        else:
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
+                                                self.tr("no data collect table selected"),
+                                                level=QgsMessageBar.CRITICAL, duration=6)
         
 
     def getTable(self,form_key):
