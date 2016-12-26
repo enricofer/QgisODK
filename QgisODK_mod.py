@@ -307,7 +307,6 @@ class QgisODK:
                 else:
                     config = currentFormConfig.widgetConfig(i)
                 fieldDef['fieldChoices'] = config
-                #print currentFormConfig.widgetConfig(i)
             else:
                 fieldDef['fieldChoices'] = {}
             fieldsModel.append(fieldDef)
@@ -322,24 +321,28 @@ class QgisODK:
     def removeODKField(self):
         self.dlg.treeView.removeField()
     
-    def exportXForm(self, fileName = None):
+    def exportXForm(self, fileName = None, submission_url = None):
         workDir = QgsProject.instance().readPath("./")
         if not fileName:
             fileName = QFileDialog().getSaveFileName(None, self.tr("Save XForm"), workDir, "*.xml")
+        else:
+            exportToWebService = True
         if QFileInfo(fileName).suffix() != "xml":
             fileName += ".xml"
-        print 'service',self.settingsDlg.getServiceName()
         json_out = self.dlg.treeView.renderToDict(service = self.settingsDlg.getServiceName())
-        print json_out
+        xForm_id = json_out["name"]
+        if exportToWebService: #if exporting to google drive a submission_url is autocreated
+            submission_url = self.settingsDlg.setDataSubmissionTable(xForm_id)
+            if submission_url:
+                json_out["submission_url"] = submission_url
         survey = create_survey_element_from_dict(json_out)
         warnings = []
         xform = survey.to_xml(validate=None, warnings=warnings)
         with io.open(fileName, "w", encoding="utf8") as xml_file:
             xml_file.write(xform)
-        xForm_id = json_out["name"]
         return xForm_id
     
-    def exportXlsForm(self, fileName = None):
+    def exportXlsForm(self, fileName = None, submission_url = None):
         workDir = QgsProject.instance().readPath("./")
         if not fileName:
             fileName = QFileDialog().getSaveFileName(None, self.tr("Save XlsForm"), workDir, "*.xls")
@@ -361,6 +364,7 @@ class QgisODK:
     def exportToWebService(self):
         tmpXlsFileName = os.path.join(self.plugin_dir,"tmpodk."+self.settingsDlg.getExportExtension())
         exportMethod = getattr(self, self.settingsDlg.getExportMethod())
+
         xForm_id = exportMethod(fileName=tmpXlsFileName)
         response = self.settingsDlg.sendForm(xForm_id,tmpXlsFileName)
         os.remove(tmpXlsFileName)
@@ -430,7 +434,6 @@ class QgisODK:
                 
             layer.readLayerXML(currentLayerState)
         else:
-            print response.text
             #msg = self.iface.messageBar().createMessage( u"QgisODK plugin error loading csv table %s, %s." % (response.status_code,response.reason))
             #self.iface.messageBar().pushWidget(msg,QgsMessageBar.WARNING, 6)
             self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("error loading csv table %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)

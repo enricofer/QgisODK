@@ -248,6 +248,10 @@ class QgisODKServices(QtGui.QDialog, Ui_ServicesDialog):
 
     def getServiceName(self):
         return self.getCurrentService().getServiceName()
+
+    def setDataSubmissionTable(self,xForm_id):
+        submission_url = self.getCurrentService().setDataSubmissionTable(xForm_id)
+        return submission_url
         
     def sendForm(self, xForm_id, xForm):
         response = self.getCurrentService().sendForm(xForm_id, xForm)
@@ -450,6 +454,9 @@ class ona(external_service):
             url = 'https://api.ona.io/api/v1/data/%s' % form_key
             response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")))
             return response
+
+    def setDataSubmissionTable(self,xForm_id):
+        return None #defined by ona.io
 
     def collectData(self):
         '''
@@ -868,6 +875,25 @@ https://docs.google.com/spreadsheets/d/%s/edit
 
         return newCsvList
 
+    def setDataSubmissionTable(self,xForm_id):
+        if not self.authorization:
+            self.get_authorization()
+
+        headers = {'Authorization': 'Bearer {}'.format(self.authorization['access_token'])}
+
+        folderId = self.createNew(self.getValue('folder'),'application/vnd.google-apps.folder')
+        self.shareFileWithCollectors(folderId, role='reader')
+
+        content_table_id = self.createNew(xForm_id[:-4]+"-collect-table",'application/vnd.google-apps.spreadsheet', parentsId=folderId)
+        self.shareFileWithCollectors(content_table_id,role='writer')
+        if content_table_id:
+            url = 'https://www.googleapis.com/drive/v3/files/'+content_table_id
+            response = requests.get(url,headers = headers)
+            self.notify(xForm_id,self.getValue('folder'),response.json()['id'],response.json()['name'])
+            self.getValue('data collection table ID',newValue=response.json()['id']) #change setting table
+            return 'https://docs.google.com/spreadsheets/d/%s/edit' % response.json()['id']
+        else:
+            return None
         
     def sendForm(self, xForm_id, xForm):
         if not self.authorization:
@@ -900,15 +926,6 @@ https://docs.google.com/spreadsheets/d/%s/edit
         file = (xForm,open(xForm,'r'),'text/xml')
         files = {'data':data, 'file':file }
         response = requests.request(method, url, headers = headers, files = files )
-
-        if response.status_code == 200:
-            content_table_id = self.createNew(xForm_id[:-4]+"-collect-table",'application/vnd.google-apps.spreadsheet', parentsId=folderId)
-            self.shareFileWithCollectors(response.json()['id'],role='reader')
-            self.shareFileWithCollectors(content_table_id,role='writer')
-            if content_table_id:
-                url = 'https://www.googleapis.com/drive/v3/files/'+content_table_id
-                response = requests.get(url,headers = headers)
-                self.notify(xForm_id,self.getValue('folder'),response.json()['id'],response.json()['name'])
-                self.getValue('data collection table ID',newValue=response.json()['id']) #change setting table
+        self.shareFileWithCollectors(response.json()['id'],role='reader')
 
         return response

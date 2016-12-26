@@ -382,7 +382,7 @@ class ODK_fields(QTreeView):
         return self.tableDef
 
 
-    def renderToDict(self,title = None, service = None):
+    def renderToDict(self,title = None, service = None, submission_url = None):
     
         if not title:
             title = self.targetLayer['name']
@@ -409,6 +409,7 @@ class ODK_fields(QTreeView):
            "title":title,
            "instance_name": 'uuid()',
            "sms_keyword":slugify(title),
+           "submission_url": submission_url or '',
            "default_language":"default",
            "id_string":slugify(title),
            "type":"survey",
