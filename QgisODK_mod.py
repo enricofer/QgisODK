@@ -234,7 +234,7 @@ class QgisODK:
         }
 
         workDir = QgsProject.instance().readPath("./")
-        fileName = QFileDialog().getSaveFileName(None, self.tr("Save QgisODK project"), workDir, "*.json");
+        fileName = QFileDialog().getSaveFileName(None, self.tr("Save QGISODK project"), workDir, "*.json");
         if fileName:
             if QFileInfo(fileName).suffix() != "json":
                 fileName += ".json"
@@ -243,14 +243,14 @@ class QgisODK:
 
     def ODKLoadLayerStateAction(self):
         workDir = QgsProject.instance().readPath("./")
-        fileName = QFileDialog().getOpenFileName(None, self.tr("Load QgisODK project"), workDir, "*.json");
+        fileName = QFileDialog().getOpenFileName(None, self.tr("Load QGISODK project"), workDir, "*.json");
         if fileName:
             with open(fileName, "r") as json_file:
                 restoreDict = json.load(json_file)
             ODKProjectName = QFileInfo(fileName).baseName()
             self.settingsDlg.importSettings(restoreDict['settings'])
             self.dlg.treeView.recover(restoreDict)
-            self.dlg.setWindowTitle("QgisODK - " + ODKProjectName)
+            self.dlg.setWindowTitle("QGISODK - " + ODKProjectName)
             self.dlg.layersComboBox.setCurrentIndex(0)
 
     def run(self):
@@ -275,7 +275,7 @@ class QgisODK:
         if not currentLayer:
             if self.iface.legendInterface().currentLayer():
                 currentLayer = self.iface.legendInterface().currentLayer()
-                self.dlg.setWindowTitle("QgisODK - " + currentLayer.name())
+                self.dlg.setWindowTitle("QGISODK - " + currentLayer.name())
             else:
                 return
         if currentLayer.type() != QgsMapLayer.VectorLayer:
@@ -331,8 +331,11 @@ class QgisODK:
             fileName += ".xml"
         json_out = self.dlg.treeView.renderToDict(service = self.settingsDlg.getServiceName())
         xForm_id = json_out["name"]
-        if exportToWebService: #if exporting to google drive a submission_url is autocreated
-            submission_url = self.settingsDlg.setDataSubmissionTable(xForm_id)
+        if exportToWebService: #if exporting to google drive a submission_url is embedded in XFORM
+            if self.settingsDlg.getValue('data collection table ID'):#autocreated
+                submission_url =  self.settingsDlg.setDataSubmissionTable(xForm_id)
+            else: #user defined
+                submission_url = 'https://docs.google.com/spreadsheets/d/%s/edit' % self.settingsDlg.getValue('data collection table ID')
             if submission_url:
                 json_out["submission_url"] = submission_url
         survey = create_survey_element_from_dict(json_out)
@@ -371,11 +374,11 @@ class QgisODK:
         if not response.status_code in (200,201):
             #msg = self.iface.messageBar().createMessage( u"QgisODK plugin error saving form %s, %s." % (response.status_code,response.reason))
             #self.iface.messageBar().pushWidget(msg,QgsMessageBar.WARNING, 6)
-            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("error saving form %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("error saving form %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
         else:
             #msg = self.iface.messageBar().createMessage( u"QgisODK plugin: form successfully exported")
             #self.iface.messageBar().pushWidget(msg,QgsMessageBar.INFO, 6)
-            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("form successfully exported"), level=QgsMessageBar.INFO, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("form successfully exported"), level=QgsMessageBar.INFO, duration=6)
 
     
     def closeDlg(self):
@@ -436,5 +439,5 @@ class QgisODK:
         else:
             #msg = self.iface.messageBar().createMessage( u"QgisODK plugin error loading csv table %s, %s." % (response.status_code,response.reason))
             #self.iface.messageBar().pushWidget(msg,QgsMessageBar.WARNING, 6)
-            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("error loading csv table %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("error loading csv table %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
 

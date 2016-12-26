@@ -113,7 +113,7 @@ class Ui_QgisODKDialogBase(object):
         QtCore.QMetaObject.connectSlotsByName(QgisODKDialogBase)
 
     def retranslateUi(self, QgisODKDialogBase):
-        QgisODKDialogBase.setWindowTitle(_translate("QgisODKDialogBase", "QgisODK", None))
+        QgisODKDialogBase.setWindowTitle(_translate("QgisODKDialogBase", "QGISODK", None))
         self.label.setText(_translate("QgisODKDialogBase", "select Layer to Export to Open Data Kit format", None))
         self.ODKsaveButton.setToolTip(_translate("QgisODKDialogBase", "save Open Data Kit project", None))
         self.ODKsaveButton.setText(_translate("QgisODKDialogBase", "S", None))

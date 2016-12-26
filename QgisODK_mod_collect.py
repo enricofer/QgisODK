@@ -224,7 +224,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                     for chunk in response:
                         f.write(chunk)
                     localURI = localAttachmentPath
-                if relativePathsCheckBox.isChecked():
+                if self.relativePathsCheckBox.isChecked():
                     return os.path.relpath(localURI,QgsProject.instance().readPath("./"))
                 else:
                     return localURI

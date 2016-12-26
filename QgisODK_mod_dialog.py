@@ -155,22 +155,9 @@ class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
             self.availableDataList.clear()
             self.availableDataList.addItems(availableData)
         else:
-            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("Can't download available data %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("Can't download available data %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
         self.show()
         self.raise_()
-        
-    def exaccept(self):
-        geojsonDict,response = self.settingsDlg.getLayerByID(self.availableDataList.selectedItems()[0].text())
-        if geojsonDict and response.status_code == requests.codes.ok:
-            self.hide()
-            workDir = QgsProject.instance().readPath("./")
-            geoJsonFileName = self.availableDataList.selectedItems()[0].text()+'_odk-'+time.strftime("%d-%m-%Y")+'.geojson'
-            with open(os.path.join(workDir,geoJsonFileName), "w") as geojson_file:
-                geojson_file.write(json.dumps(geojsonDict))
-            layer = self.iface.addVectorLayer(os.path.join(workDir,geoJsonFileName), geoJsonFileName[:-8], "ogr")
-            QgsMapLayerRegistry.instance().addMapLayer(layer)
-        else:
-            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("error loading csv table %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
 
     def getRemoteTable(self):
         if self.availableDataList.selectedItems():
@@ -495,7 +482,7 @@ class ona(external_service):
                 return response, csvList
 
             else:
-                self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("error loading csv table %s, %s.") % (
+                self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("error loading csv table %s, %s.") % (
                 response.status_code, response.reason), level=QgsMessageBar.CRITICAL, duration=6)
                 return response, None
 
@@ -601,13 +588,24 @@ class google_drive(external_service):
         '''
         interactive table selection
         '''
-        remoteTableID = self.getValue("data collection table ID")
-        if remoteTableID != '':
-            remoteTable = self.getTable()
-            remoteTableMetadata = self.getMetadataFromID(remoteTableID)
-            self.importDataFromService.view(remoteTableMetadata['name'], remoteTable)
+        #remoteTableName, response = self.getAvailableDataCollections()
+        remoteTableName = QgisODKImportCollectedData.getXFormID(self)
+        if remoteTableName:
+            remoteTableID = self.getIdFromName(remoteTableName)
+            print "remoteTableID", remoteTableID
         else:
-            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"),
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
+                                                self.tr("no data collect table selected"),
+                                                level=QgsMessageBar.CRITICAL, duration=6)
+            return
+
+        if remoteTableID != '':
+            remoteTable = self.getTable(remoteTableID)
+            remoteTableMetadata = self.getMetadataFromID(remoteTableID)
+            print "remoteTableMetadata",remoteTableMetadata
+            self.importDataFromService.view(remoteTableMetadata, remoteTable)
+        else:
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
                                                 self.tr("undefined data collect table ID"),
                                                 level=QgsMessageBar.CRITICAL, duration=6)
 
@@ -702,7 +700,25 @@ https://docs.google.com/spreadsheets/d/%s/edit
 
 
     def getAvailableDataCollections(self):
-        pass
+        if not self.authorization:
+            self.get_authorization()
+
+        url = 'https://www.googleapis.com/drive/v3/files'
+        headers = {'Authorization':'Bearer {}'.format(self.authorization['access_token'])}
+        folderID = self.getIdFromName(self.getValue('folder'))
+        params = {"q": "mimeType = 'application/vnd.google-apps.spreadsheet' and '%s' in parents" % folderID, "spaces": "drive"}
+        response = requests.get( url, headers = headers, params = params )
+        if response.status_code == requests.codes.ok:
+            files = response.json()["files"]
+            filesList = []
+            for file in files:
+                filesList.append(file["name"])
+            print "getAvailableDataCollections", response.status_code, filesList
+            return filesList, response
+        else:
+            return None, response
+
+
 
     def createNew(self, name, mimeType, parentsId = None):
         if not self.authorization:
@@ -770,9 +786,9 @@ https://docs.google.com/spreadsheets/d/%s/edit
         else:
             pass #print response.reason
 
-    def getLayer(self):
+    def getLayer(self,remoteTableName):
         if self.getValue("data collection table ID") == '':
-            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"),
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
                                                 self.tr("undefined data collect table ID"),
                                                 level=QgsMessageBar.CRITICAL, duration=6)
             return
@@ -780,23 +796,28 @@ https://docs.google.com/spreadsheets/d/%s/edit
         if not self.authorization:
             self.get_authorization()
 
+        metadata = self.getMetadataFromID(self.getValue("data collection table ID"))
+        if metadata:
+            layerName = metadata['name']
+        else:
+            layerName = self.tr('collected-data')
+
         remoteData = self.getTable()
         geojson = self.getLayerFromTable(remoteData)
 
-        if response.status_code == requests.codes.ok:
+        if geojson:
             workDir = QgsProject.instance().readPath("./")
             geoJsonFileName = layerName + '_odk-' + time.strftime(
                 "%d-%m-%Y") + '.geojson'
-            with open(os.path.join(workDir, layerName), "w") as geojson_file:
+            with open(os.path.join(workDir, geoJsonFileName), "w") as geojson_file:
                 geojson_file.write(json.dumps(geojson))
             layer = self.iface.addVectorLayer(os.path.join(workDir, layerName), layerName[:-8], "ogr")
             QgsMapLayerRegistry.instance().addMapLayer(layer)
         else:
-            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("error loading csv table %s, %s.") % (
-            response.status_code, response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("error loading csv table"))
 
 
-    def getLayerFromTable(self,remoteData):
+    def getLayerFromTable(self, remoteData, ):
         geojson = {
             "type": "FeatureCollection",
             "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
@@ -837,19 +858,20 @@ https://docs.google.com/spreadsheets/d/%s/edit
 
             geojson["features"].append(feature)
 
-        metadata = self.getMetadataFromID(self.getValue("data collection table ID"))
-        if metadata:
-            layerName = metadata['name']
-        else:
-            layerName = self.tr('collected-data')
+        #metadata = self.getMetadataFromID(self.getValue("data collection table ID"))
+        #if metadata:
+        #    layerName = metadata['name']
+        #else:
+        #    layerName = self.tr('collected-data')
+        
         return geojson
 
-    def getTable(self):
+    def getTable(self, tableID):
         if not self.authorization:
             self.get_authorization()
 
         #step1 - verify if form exists:
-        url = 'https://docs.google.com/spreadsheets/d/%s/export?format=csv&id=%s&gid=0' % (self.getValue("data collection table ID"),self.getValue("data collection table ID"))
+        url = 'https://docs.google.com/spreadsheets/d/%s/export?format=csv&id=%s&gid=0' % (tableID,self.getValue("data collection table ID"))
         headers = {'Authorization': 'Bearer {}'.format(self.authorization['access_token']),
                    'Content-Type': 'application/json'}
 
@@ -872,8 +894,9 @@ https://docs.google.com/spreadsheets/d/%s/edit
                 for field in row.keys():
                     newRow[field[len_prefix:]] = row[field] # remap field
                 newCsvList.append(newRow)
-
-        return newCsvList
+            return newCsvList
+        else:
+            print "getTable", response, response.text
 
     def setDataSubmissionTable(self,xForm_id):
         if not self.authorization:
@@ -890,7 +913,6 @@ https://docs.google.com/spreadsheets/d/%s/edit
             url = 'https://www.googleapis.com/drive/v3/files/'+content_table_id
             response = requests.get(url,headers = headers)
             self.notify(xForm_id,self.getValue('folder'),response.json()['id'],response.json()['name'])
-            self.getValue('data collection table ID',newValue=response.json()['id']) #change setting table
             return 'https://docs.google.com/spreadsheets/d/%s/edit' % response.json()['id']
         else:
             return None
@@ -907,7 +929,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
 
         metadata = {
             "name": xForm_id,
-            "description": 'uploaded by QgisODK plugin'
+            "description": 'uploaded by QGISODK plugin'
         }
 
         if fileId: 
