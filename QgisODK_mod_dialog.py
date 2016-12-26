@@ -786,7 +786,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
         else:
             pass #print response.reason
 
-    def getLayer(self,remoteTableName):
+    def _getLayer(self,remoteTableName):
         if self.getValue("data collection table ID") == '':
             self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
                                                 self.tr("undefined data collect table ID"),
