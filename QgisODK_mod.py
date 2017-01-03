@@ -325,6 +325,7 @@ class QgisODK:
         workDir = QgsProject.instance().readPath("./")
         if not fileName:
             fileName = QFileDialog().getSaveFileName(None, self.tr("Save XForm"), workDir, "*.xml")
+            exportToWebService = None
         else:
             exportToWebService = True
         if QFileInfo(fileName).suffix() != "xml":
@@ -332,7 +333,7 @@ class QgisODK:
         json_out = self.dlg.treeView.renderToDict(service = self.settingsDlg.getServiceName())
         xForm_id = json_out["name"]
         if exportToWebService: #if exporting to google drive a submission_url is embedded in XFORM
-            if self.settingsDlg.getCurrentService().getValue('data collection table ID'):#autocreated
+            if self.settingsDlg.getCurrentService().getValue('data collection table ID') == "":#autocreated
                 submission_url =  self.settingsDlg.setDataSubmissionTable(xForm_id)
             else: #user defined
                 submission_url = 'https://docs.google.com/spreadsheets/d/%s/edit' % self.settingsDlg.getCurrentService().getValue('data collection table ID')
@@ -343,6 +344,8 @@ class QgisODK:
         xform = survey.to_xml(validate=None, warnings=warnings)
         with io.open(fileName, "w", encoding="utf8") as xml_file:
             xml_file.write(xform)
+        #with io.open(fileName+'.json', "wb") as json_file:
+        #    json.dump(json_out,json_file)
         return xForm_id
     
     def exportXlsForm(self, fileName = None, submission_url = None):
@@ -372,12 +375,8 @@ class QgisODK:
         response = self.settingsDlg.sendForm(xForm_id,tmpXlsFileName)
         os.remove(tmpXlsFileName)
         if not response.status_code in (200,201):
-            #msg = self.iface.messageBar().createMessage( u"QgisODK plugin error saving form %s, %s." % (response.status_code,response.reason))
-            #self.iface.messageBar().pushWidget(msg,QgsMessageBar.WARNING, 6)
             self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("error saving form %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
         else:
-            #msg = self.iface.messageBar().createMessage( u"QgisODK plugin: form successfully exported")
-            #self.iface.messageBar().pushWidget(msg,QgsMessageBar.INFO, 6)
             self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("form successfully exported"), level=QgsMessageBar.INFO, duration=6)
 
     

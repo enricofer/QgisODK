@@ -148,16 +148,33 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                 self.fieldTable.setItem(row,1,ODKfieldItem)
                 self.fieldTable.setRowHeight(row,30)
                 QGISfieldItem = QTableWidgetItem()
+                
+                # try to guess field mapping
+                QGISfieldItem.setText("")
+                enabledItem.setCheckState(Qt.Unchecked)
+                for fieldOrigin, FieldDest in self.fieldMapping.iteritems():
+                    if fieldOrigin in slugify(field):
+                        QGISfieldItem.setText(FieldDest)
+                        enabledItem.setCheckState(Qt.Checked)
+                        break
+
+                '''
                 if slugify(field) in self.fieldMapping:
                     QGISfieldItem.setText(self.fieldMapping[slugify(field)])
                     enabledItem.setCheckState(Qt.Checked)
                 else:
                     QGISfieldItem.setText("")
                     enabledItem.setCheckState(Qt.Unchecked)
+                '''
+
                 self.fieldTable.setItem(row,2,QGISfieldItem)
                 if field[-7:] in predefinedFields: #prevent predefined fields user editing
                     if field[-7:] == 'ODKUUID':
                         ODKfieldItem.setText('ODKUUID')
+                        QGISfieldItem.setText('ODKUUID')
+                    elif field[-7:] == 'EOMETRY':
+                        ODKfieldItem.setText('GEOMETRY')
+                        QGISfieldItem.setText('GEOMETRY')
                     enabledItem.setCheckState(Qt.Checked)
                     enabledItem.setFlags(enabledItem.flags() & Qt.ItemIsEditable)
                     ODKfieldItem.setFlags(ODKfieldItem.flags() & Qt.ItemIsEditable)

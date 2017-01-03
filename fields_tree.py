@@ -398,6 +398,9 @@ class ODK_fields(QTreeView):
                     dict = self.renderItemStructure(childRow.index(), output = 'dict', service = service)
                 else: #is groupItem
                     dict = self.renderGroupStructure(childRow.index(), output = 'dict')
+                    if dict and dict['name'] == 'metadata': # do not group if metadata, simply add to childrenlist
+                        childrenList += dict['children']
+                        dict = None
                 if dict:
                     childrenList.append(dict)
                     

@@ -123,7 +123,7 @@ class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
 
     def __init__(self,module, parent = None): #(self, module, parent = None):
         """Constructor."""
-        #self.iface = module.iface
+        self.iface = module.iface
         self.module = module
         super(QgisODKImportCollectedData, self).__init__(parent)
         # Set up the user interface from Designer.
@@ -597,7 +597,6 @@ class google_drive(external_service):
         remoteTableName = QgisODKImportCollectedData.getXFormID(self)
         if remoteTableName:
             remoteTableID = self.getIdFromName(remoteTableName)
-            print "remoteTableID", remoteTableID
         else:
             self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
                                                 self.tr("no data collect table selected"),
@@ -607,7 +606,6 @@ class google_drive(external_service):
         if remoteTableID != '':
             remoteTable = self.getTable(remoteTableID)
             remoteTableMetadata = self.getMetadataFromID(remoteTableID)
-            print "remoteTableMetadata",remoteTableMetadata
             self.importDataFromService.view(remoteTableMetadata, remoteTable)
         else:
             self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
@@ -676,7 +674,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             self.get_authorization()
         url = 'https://www.googleapis.com/drive/v3/files'
         headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token'])}
-        params = {"q": "name contains '%s'" % fileName, "spaces": "drive"}
+        params = {"q": "name = '%s'" % fileName, "spaces": "drive"}
         response = requests.get( url, headers = headers, params = params )
         if response.status_code == requests.codes.ok:
             found = response.json()
@@ -710,7 +708,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
 
         url = 'https://www.googleapis.com/drive/v3/files'
         headers = {'Authorization':'Bearer {}'.format(self.authorization['access_token'])}
-        folderID = self.getIdFromName(self.getValue('folder'))
+        folderID = self.getIdFromName(self.getValue('folder'), mimeType = 'application/vnd.google-apps.folder')
         params = {"q": "mimeType = 'application/vnd.google-apps.spreadsheet' and '%s' in parents" % folderID, "spaces": "drive"}
         response = requests.get( url, headers = headers, params = params )
         if response.status_code == requests.codes.ok:
@@ -718,8 +716,10 @@ https://docs.google.com/spreadsheets/d/%s/edit
             filesList = []
             for file in files:
                 filesList.append(file["name"])
-            print "getAvailableDataCollections", response.status_code, filesList
-            return filesList, response
+            if filesList != []:
+                return filesList, response
+            else:
+                return None, response
         else:
             return None, response
 
@@ -947,7 +947,6 @@ https://docs.google.com/spreadsheets/d/%s/edit
         
         headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token']) }
 
-        #data = ('metadata',json.dumps(DataDict(name = xForm_id, description = 'uploaded by QgisODK plugin', parents = [folderId])),'application/json; charset=UTF-8')
         data = ('metadata', json.dumps(metadata),'application/json; charset=UTF-8')
 
         file = (xForm,open(xForm,'r'),'text/xml')
