@@ -274,8 +274,9 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
         for qgisFeature in layer.getFeatures():
             if qgisFeature['ODKUUID']:
                 uuidList.append(qgisFeature['ODKUUID'])
-        
+
         newQgisFeatures = []
+        fieldError = None
         for odkFeature in dataDict:
             if not odkFeature['ODKUUID'] in uuidList:
                 qgisFeature = QgsFeature()
@@ -285,9 +286,16 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                 qgisFeature.initAttributes(len(QgisFieldsList))
                 for fieldName, fieldValue in odkFeature.iteritems():
                     if fieldName != 'GEOMETRY':
-                        qgisFeature.setAttribute(QgisFieldsList.index(fieldName),fieldValue)
+                        try:
+                            qgisFeature.setAttribute(QgisFieldsList.index(fieldName),fieldValue)
+                        except:
+                            fieldError = fieldName
+                        
                 newQgisFeatures.append(qgisFeature)
                 
+        if fieldError:
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("Can't find '%s' field") % fieldError, level=QgsMessageBar.WARNING, duration=6)
+        
         layer.addFeatures(newQgisFeatures)
         self.processingLayer = None
 
