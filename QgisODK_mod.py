@@ -332,10 +332,10 @@ class QgisODK:
         json_out = self.dlg.treeView.renderToDict(service = self.settingsDlg.getServiceName())
         xForm_id = json_out["name"]
         if exportToWebService: #if exporting to google drive a submission_url is embedded in XFORM
-            if self.settingsDlg.getValue('data collection table ID'):#autocreated
+            if self.settingsDlg.getCurrentService().getValue('data collection table ID'):#autocreated
                 submission_url =  self.settingsDlg.setDataSubmissionTable(xForm_id)
             else: #user defined
-                submission_url = 'https://docs.google.com/spreadsheets/d/%s/edit' % self.settingsDlg.getValue('data collection table ID')
+                submission_url = 'https://docs.google.com/spreadsheets/d/%s/edit' % self.settingsDlg.getCurrentService().getValue('data collection table ID')
             if submission_url:
                 json_out["submission_url"] = submission_url
         survey = create_survey_element_from_dict(json_out)
