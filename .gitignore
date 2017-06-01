@@ -6,3 +6,4 @@ help/
 sample/
 .DS_Store
 tmpodk.xml
+temp/*

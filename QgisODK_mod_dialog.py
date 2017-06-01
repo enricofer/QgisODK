@@ -439,7 +439,7 @@ class ona(external_service):
             return response
         if form_key:
             url = 'https://api.ona.io/api/v1/data/%s' % form_key
-            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")))
+            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = self.getProxiesConf())
             return response
 
     def setDataSubmissionTable(self,xForm_id):
@@ -469,7 +469,7 @@ class ona(external_service):
         #    return response, None
         if form_key:
             url = 'https://api.ona.io/api/v1/data/%s.csv' % form_key
-            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")))
+            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = self.getProxiesConf())
             if response.status_code == 200:
                 csvIO = StringIO.StringIO(response.text)
                 csvIn = csv.DictReader(csvIO, delimiter=',', quotechar='"')
@@ -539,7 +539,7 @@ class ona(external_service):
                         downloadDir = os.path.join(QgsProject.instance().readPath("./"),'attachments_%s_%s' % (self.getValue("name"),self.getValue("project_id")))
                         if not os.path.exists(downloadDir):
                             os.makedirs(downloadDir)
-                        response = requests.get(attachements[fileKey], stream=True)
+                        response = requests.get(attachements[fileKey], stream=True, proxies = self.getProxiesConf())
                         localAttachmentPath = os.path.abspath(os.path.join(downloadDir,fileKey))
                         if response.status_code == 200:
                             with open(localAttachmentPath, 'wb') as f:
@@ -572,10 +572,10 @@ class ona(external_service):
 class google_drive(external_service):
     parameters = [
         ["id","google_drive"],
-        ["folder",""],
-        ["data collection table ID", ""],
         ["google drive login", ""],
         ["data collectors emails", ""],
+        ["folder",""],
+        ["data collection table ID", ""],
         ["notifications?(YES/NO)", "YES"]
     ]
 
@@ -625,16 +625,16 @@ class google_drive(external_service):
             self.get_authorization()
 
         # create a message to send
-        message = MIMEText(MSG)
+        message = MIMEText(MSG.encode('utf-8'), 'plain', 'utf-8')
         message['to'] = TO
         message['from'] = FROM
-        message['subject'] = SUBJECT
+        message['subject'] = SUBJECT.encode('utf-8')
         body = {'raw': base64.b64encode(message.as_string())}
 
         url = 'https://www.googleapis.com/gmail/v1/users/me/messages/send'
         headers = {'Authorization': 'Bearer {}'.format(self.authorization['access_token']), 'Content-Type': 'application/json'}
 
-        response = requests.post(url,headers = headers, data = json.dumps(body))
+        response = requests.post(url,headers = headers, data = json.dumps(body), proxies = self.getProxiesConf())
 
     def notify(self,XFormName,XFormFolder,collectTableId,collectTableName):
         if self.getValue('notifications?(YES/NO)').upper() == 'YES':
@@ -642,7 +642,7 @@ class google_drive(external_service):
 You are receiving this automatically generated message because you are taking part to a Open Data Kit survey
 
 Your ODK Collect app has to be configured with the following parameters:
-a new form called %s has been uploaded in the folder %s shared with your Google Drive
+a new form called %s has been uploaded in the folder %s shared with you
 The Data Collection table is named %s and has the following uri:
 
 https://docs.google.com/spreadsheets/d/%s/edit
@@ -660,7 +660,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
                 "type": type,
                 "emailAddress": email
             }
-            response = requests.post(url, headers=headers, data=json.dumps(metadata))
+            response = requests.post(url, headers=headers, data=json.dumps(metadata), proxies = self.getProxiesConf())
 
 
     def getExportMethod(self):
@@ -675,7 +675,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
         url = 'https://www.googleapis.com/drive/v3/files'
         headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token'])}
         params = {"q": "name = '%s'" % fileName, "spaces": "drive"}
-        response = requests.get( url, headers = headers, params = params )
+        response = requests.get( url, headers = headers, params = params, proxies = self.getProxiesConf() )
         if response.status_code == requests.codes.ok:
             found = response.json()
             files = found['files']
@@ -695,7 +695,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             self.get_authorization()
         url = 'https://www.googleapis.com/drive/v3/files/'+fileID
         headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token'])}
-        response = requests.get( url, headers = headers)
+        response = requests.get( url, headers = headers, proxies = self.getProxiesConf())
         if response.status_code == requests.codes.ok:
             return response.json()
         else:
@@ -710,7 +710,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
         headers = {'Authorization':'Bearer {}'.format(self.authorization['access_token'])}
         folderID = self.getIdFromName(self.getValue('folder'), mimeType = 'application/vnd.google-apps.folder')
         params = {"q": "mimeType = 'application/vnd.google-apps.spreadsheet' and '%s' in parents" % folderID, "spaces": "drive"}
-        response = requests.get( url, headers = headers, params = params )
+        response = requests.get( url, headers = headers, params = params, proxies = self.getProxiesConf() )
         if response.status_code == requests.codes.ok:
             files = response.json()["files"]
             filesList = []
@@ -742,7 +742,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             }
             if parentsId:
                 metadata['parents'] = [parentsId]
-            response = requests.post( url, headers = headers, data = json.dumps(metadata))
+            response = requests.post( url, headers = headers, data = json.dumps(metadata), proxies = self.getProxiesConf())
             if response.status_code != 200 or 'error' in response.json():
                 return None
             return response.json()['id']
@@ -755,7 +755,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             'scope': 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.send', #'https://www.googleapis.com/auth/drive.file',
             'login_hint': self.getValue('google drive login')
         }
-        response = requests.post('https://accounts.google.com/o/oauth2/v2/auth', params=verification_params)
+        response = requests.post('https://accounts.google.com/o/oauth2/v2/auth', params=verification_params, proxies = self.getProxiesConf())
         if response.status_code == requests.codes.ok:
             self.verification = internalBrowser.getCode(response.text, self.getValue('google drive login'))
 
@@ -771,7 +771,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             'grant_type': 'authorization_code',
             'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob:auto'
         }
-        response = requests.post('https://www.googleapis.com/oauth2/v4/token', params=authorization_params)
+        response = requests.post('https://www.googleapis.com/oauth2/v4/token', params=authorization_params, proxies = self.getProxiesConf())
         if response.status_code == requests.codes.ok:
             authorization = response.json()
             if 'error' in authorization:
@@ -916,7 +916,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
         self.shareFileWithCollectors(content_table_id,role='writer')
         if content_table_id:
             url = 'https://www.googleapis.com/drive/v3/files/'+content_table_id
-            response = requests.get(url,headers = headers)
+            response = requests.get(url,headers = headers, proxies = self.getProxiesConf())
             self.notify(xForm_id,self.getValue('folder'),response.json()['id'],response.json()['name'])
             return 'https://docs.google.com/spreadsheets/d/%s/edit' % response.json()['id']
         else:
@@ -951,7 +951,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
 
         file = (xForm,open(xForm,'r'),'text/xml')
         files = {'data':data, 'file':file }
-        response = requests.request(method, url, headers = headers, files = files )
+        response = requests.request(method, url, headers = headers, files = files, proxies = self.getProxiesConf() )
         self.shareFileWithCollectors(response.json()['id'],role='reader')
 
         return response
