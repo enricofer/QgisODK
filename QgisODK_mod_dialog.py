@@ -38,7 +38,7 @@ from qgis.gui import QgsMessageBar
 from email.mime.text import MIMEText
 
 
-from QgisODK_mod_collect import QgisODKimportDataFromService
+from QgisODK_mod_collect import QgisODKimportDataFromService, getProxiesConf
 from QgisODK_mod_dialog_base import Ui_QgisODKDialogBase
 from QgisODK_mod_dialog_services import Ui_ServicesDialog
 from QgisODK_mod_dialog_import import Ui_ImportDialog
@@ -322,23 +322,6 @@ class external_service(QTableWidget):
                     self.setup() #store to settings
                 return self.item(row,1).text()
         raise AttributeError("key not found: " + key)
-    
-    def getProxiesConf(self):
-        s = QSettings() #getting proxy from qgis options settings
-        proxyEnabled = s.value("proxy/proxyEnabled", "")
-        proxyType = s.value("proxy/proxyType", "" )
-        proxyHost = s.value("proxy/proxyHost", "" )
-        proxyPort = s.value("proxy/proxyPort", "" )
-        proxyUser = s.value("proxy/proxyUser", "" )
-        proxyPassword = s.value("proxy/proxyPassword", "" )
-        if proxyEnabled == "true" and proxyType == 'HttpProxy': # test if there are proxy settings
-            proxyDict = {
-                "http"  : "http://%s:%s@%s:%s" % (proxyUser,proxyPassword,proxyHost,proxyPort),
-                "https" : "http://%s:%s@%s:%s" % (proxyUser,proxyPassword,proxyHost,proxyPort) 
-            }
-            return proxyDict
-        else:
-            return None
 
     def guessGeomType(self,geom):
         coordinates = geom.split(';')
@@ -389,7 +372,7 @@ class ona(external_service):
     
     def getAvailableDataCollections(self):
         url = 'https://api.ona.io/api/v1/projects/%s/forms' % self.getValue("project_id")
-        response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = self.getProxiesConf())
+        response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = getProxiesConf())
         if response.status_code != requests.codes.ok:
             return None, response
         forms = response.json()
@@ -401,7 +384,7 @@ class ona(external_service):
     def formIDToPk(self,xForm_id):
         #verify if form exists:
         url = 'https://api.ona.io/api/v1/projects/%s/forms' % self.getValue("project_id")
-        response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = self.getProxiesConf())
+        response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = getProxiesConf())
         if response.status_code != requests.codes.ok:
             return None, response
         forms = response.json()
@@ -426,7 +409,7 @@ class ona(external_service):
             url = 'https://api.ona.io/api/v1/projects/%s/forms' % self.getValue("project_id")
         #step1 - upload form: POST if new PATCH if exixtent
         files = {'xls_file': (xForm, open(xForm, 'rb'), 'application/vnd.ms-excel', {'Expires': '0'})}
-        response = requests.request(method, url, files=files, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = self.getProxiesConf())#, proxies = proxyDict,headers={'Content-Type': 'application/octet-stream'})
+        response = requests.request(method, url, files=files, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = getProxiesConf())#, proxies = proxyDict,headers={'Content-Type': 'application/octet-stream'})
         return response
 
     def getUUIDfield(self):
@@ -439,7 +422,7 @@ class ona(external_service):
             return response
         if form_key:
             url = 'https://api.ona.io/api/v1/data/%s' % form_key
-            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = self.getProxiesConf())
+            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = getProxiesConf())
             return response
 
     def setDataSubmissionTable(self,xForm_id):
@@ -467,12 +450,21 @@ class ona(external_service):
         #    self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("error loading csv table %s, %s.") % (
         #    response.status_code, response.reason), level=QgsMessageBar.CRITICAL, duration=6)
         #    return response, None
+        def UnicodeDictReader(utf8_data, **kwargs):
+            csv_reader = csv.DictReader(utf_8_encoder(utf8_data), **kwargs)
+            for row in csv_reader:
+                yield {unicode(key, 'utf-8'):unicode(value, 'utf-8') for key, value in row.iteritems()}
+                
+        def utf_8_encoder(unicode_csv_data):
+            for line in unicode_csv_data:
+                yield line.encode('utf-8')
+        
         if form_key:
             url = 'https://api.ona.io/api/v1/data/%s.csv' % form_key
-            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = self.getProxiesConf())
+            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = getProxiesConf())
             if response.status_code == 200:
                 csvIO = StringIO.StringIO(response.text)
-                csvIn = csv.DictReader(csvIO, delimiter=',', quotechar='"')
+                csvIn = UnicodeDictReader(csvIO, delimiter=',', quotechar='"')
                 csvList = []
                 for row in csvIn:
                     remappedRow = {}
@@ -539,7 +531,7 @@ class ona(external_service):
                         downloadDir = os.path.join(QgsProject.instance().readPath("./"),'attachments_%s_%s' % (self.getValue("name"),self.getValue("project_id")))
                         if not os.path.exists(downloadDir):
                             os.makedirs(downloadDir)
-                        response = requests.get(attachements[fileKey], stream=True, proxies = self.getProxiesConf())
+                        response = requests.get(attachements[fileKey], stream=True, proxies = getProxiesConf())
                         localAttachmentPath = os.path.abspath(os.path.join(downloadDir,fileKey))
                         if response.status_code == 200:
                             with open(localAttachmentPath, 'wb') as f:
@@ -634,7 +626,7 @@ class google_drive(external_service):
         url = 'https://www.googleapis.com/gmail/v1/users/me/messages/send'
         headers = {'Authorization': 'Bearer {}'.format(self.authorization['access_token']), 'Content-Type': 'application/json'}
 
-        response = requests.post(url,headers = headers, data = json.dumps(body), proxies = self.getProxiesConf())
+        response = requests.post(url,headers = headers, data = json.dumps(body), proxies = getProxiesConf())
 
     def notify(self,XFormName,XFormFolder,collectTableId,collectTableName):
         if self.getValue('notifications?(YES/NO)').upper() == 'YES':
@@ -660,7 +652,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
                 "type": type,
                 "emailAddress": email
             }
-            response = requests.post(url, headers=headers, data=json.dumps(metadata), proxies = self.getProxiesConf())
+            response = requests.post(url, headers=headers, data=json.dumps(metadata), proxies = getProxiesConf())
 
 
     def getExportMethod(self):
@@ -675,7 +667,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
         url = 'https://www.googleapis.com/drive/v3/files'
         headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token'])}
         params = {"q": "name = '%s'" % fileName, "spaces": "drive"}
-        response = requests.get( url, headers = headers, params = params, proxies = self.getProxiesConf() )
+        response = requests.get( url, headers = headers, params = params, proxies = getProxiesConf() )
         if response.status_code == requests.codes.ok:
             found = response.json()
             files = found['files']
@@ -695,7 +687,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             self.get_authorization()
         url = 'https://www.googleapis.com/drive/v3/files/'+fileID
         headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token'])}
-        response = requests.get( url, headers = headers, proxies = self.getProxiesConf())
+        response = requests.get( url, headers = headers, proxies = getProxiesConf())
         if response.status_code == requests.codes.ok:
             return response.json()
         else:
@@ -710,7 +702,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
         headers = {'Authorization':'Bearer {}'.format(self.authorization['access_token'])}
         folderID = self.getIdFromName(self.getValue('folder'), mimeType = 'application/vnd.google-apps.folder')
         params = {"q": "mimeType = 'application/vnd.google-apps.spreadsheet' and '%s' in parents" % folderID, "spaces": "drive"}
-        response = requests.get( url, headers = headers, params = params, proxies = self.getProxiesConf() )
+        response = requests.get( url, headers = headers, params = params, proxies = getProxiesConf() )
         if response.status_code == requests.codes.ok:
             files = response.json()["files"]
             filesList = []
@@ -742,7 +734,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             }
             if parentsId:
                 metadata['parents'] = [parentsId]
-            response = requests.post( url, headers = headers, data = json.dumps(metadata), proxies = self.getProxiesConf())
+            response = requests.post( url, headers = headers, data = json.dumps(metadata), proxies = getProxiesConf())
             if response.status_code != 200 or 'error' in response.json():
                 return None
             return response.json()['id']
@@ -755,7 +747,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             'scope': 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.send', #'https://www.googleapis.com/auth/drive.file',
             'login_hint': self.getValue('google drive login')
         }
-        response = requests.post('https://accounts.google.com/o/oauth2/v2/auth', params=verification_params, proxies = self.getProxiesConf())
+        response = requests.post('https://accounts.google.com/o/oauth2/v2/auth', params=verification_params, proxies = getProxiesConf())
         if response.status_code == requests.codes.ok:
             self.verification = internalBrowser.getCode(response.text, self.getValue('google drive login'))
 
@@ -771,7 +763,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             'grant_type': 'authorization_code',
             'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob:auto'
         }
-        response = requests.post('https://www.googleapis.com/oauth2/v4/token', params=authorization_params, proxies = self.getProxiesConf())
+        response = requests.post('https://www.googleapis.com/oauth2/v4/token', params=authorization_params, proxies = getProxiesConf())
         if response.status_code == requests.codes.ok:
             authorization = response.json()
             if 'error' in authorization:
@@ -916,7 +908,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
         self.shareFileWithCollectors(content_table_id,role='writer')
         if content_table_id:
             url = 'https://www.googleapis.com/drive/v3/files/'+content_table_id
-            response = requests.get(url,headers = headers, proxies = self.getProxiesConf())
+            response = requests.get(url,headers = headers, proxies = getProxiesConf())
             self.notify(xForm_id,self.getValue('folder'),response.json()['id'],response.json()['name'])
             return 'https://docs.google.com/spreadsheets/d/%s/edit' % response.json()['id']
         else:
@@ -951,7 +943,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
 
         file = (xForm,open(xForm,'r'),'text/xml')
         files = {'data':data, 'file':file }
-        response = requests.request(method, url, headers = headers, files = files, proxies = self.getProxiesConf() )
+        response = requests.request(method, url, headers = headers, files = files, proxies = getProxiesConf() )
         self.shareFileWithCollectors(response.json()['id'],role='reader')
 
         return response

@@ -35,6 +35,23 @@ from qgis.core import QgsMapLayer, QgsMapLayerRegistry, QgsProject, QgsFeature, 
 from qgis.gui import QgsMessageBar
 
 from fields_tree import slugify
+    
+def getProxiesConf():
+    s = QSettings() #getting proxy from qgis options settings
+    proxyEnabled = s.value("proxy/proxyEnabled", "")
+    proxyType = s.value("proxy/proxyType", "" )
+    proxyHost = s.value("proxy/proxyHost", "" )
+    proxyPort = s.value("proxy/proxyPort", "" )
+    proxyUser = s.value("proxy/proxyUser", "" )
+    proxyPassword = s.value("proxy/proxyPassword", "" )
+    if proxyEnabled == "true" and proxyType == 'HttpProxy': # test if there are proxy settings
+        proxyDict = {
+            "http"  : "http://%s:%s@%s:%s" % (proxyUser,proxyPassword,proxyHost,proxyPort),
+            "https" : "http://%s:%s@%s:%s" % (proxyUser,proxyPassword,proxyHost,proxyPort) 
+        }
+        return proxyDict
+    else:
+        return None
 
 class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
 
@@ -233,7 +250,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
             downloadDir = os.path.join(QgsProject.instance().readPath("./"),'attachments_%s' % layerName)
             if not os.path.exists(downloadDir):
                 os.makedirs(downloadDir)
-            response = requests.get(URI, stream=True)
+            response = requests.get(URI, allow_redirects=True, stream=True, proxies=getProxiesConf())
             localAttachmentPath = os.path.abspath(os.path.join(downloadDir,fileName))
             if response.status_code == 200:
                 print "downloading",localAttachmentPath, URI
