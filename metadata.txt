@@ -10,7 +10,7 @@
 name=QgisODK
 qgisMinimumVersion=2.14
 description= A tool for authoring and managing mobile surveys Open Data Kit (ODK) from QGIS
-version=1.6
+version=1.7
 author=Enrico Ferreguti
 email=enricofer@gmail.com
 
@@ -35,6 +35,8 @@ repository=https://github.com/enricofer/QgisODK
   1.4 google drive: embedding submission_url in XForms, select from availables data collection tables
   1.5 Google Drive export and import issues fixed
   1.6 issues behind proxy fixed
+  1.7 data collection issues fixed, data collect dialog improvements, odk project linked to qgis project feature
+
 
 # Tags are comma separated with spaces allowed
 tags= ODK,open data kit,data collection,collection,on field,onfield,mobile,android,survey
