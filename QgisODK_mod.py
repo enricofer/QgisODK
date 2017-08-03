@@ -23,7 +23,7 @@
 from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, QFileInfo
 from PyQt4.QtGui import QMenu, QAction, QIcon, QFileDialog
 from PyQt4.QtXml import QDomDocument, QDomElement
-from qgis.core import QgsMapLayer, QgsMapLayerRegistry, QgsProject
+from qgis.core import QgsMapLayer, QgsMapLayerRegistry, QgsProject, QgsExpressionContextUtils
 from qgis.gui import QgsMessageBar
 
 # Initialize Qt resources from file resources.py
@@ -240,10 +240,12 @@ class QgisODK:
                 fileName += ".json"
             with open(fileName, "w") as json_file:
                 json.dump(backupDict, json_file)
+        QgsExpressionContextUtils.setProjectVariable('QgisODK_current_project',fileName)
 
-    def ODKLoadLayerStateAction(self):
-        workDir = QgsProject.instance().readPath("./")
-        fileName = QFileDialog().getOpenFileName(None, self.tr("Load QGISODK project"), workDir, "*.json");
+    def ODKLoadLayerStateAction(self, fileName=None):
+        if not fileName:
+            workDir = QgsProject.instance().readPath("./")
+            fileName = QFileDialog().getOpenFileName(None, self.tr("Load QGISODK project"), workDir, "*.json");
         if fileName:
             with open(fileName, "r") as json_file:
                 restoreDict = json.load(json_file)
@@ -251,11 +253,31 @@ class QgisODK:
             self.settingsDlg.importSettings(restoreDict['settings'])
             self.dlg.treeView.recover(restoreDict)
             self.dlg.setWindowTitle("QGISODK - " + ODKProjectName)
-            self.dlg.layersComboBox.setCurrentIndex(0)
+            #print restoreDict['targetLayer']['id']
+            current_idx = self.dlg.layersComboBox.findData(restoreDict['targetLayer']['id'])
+            if current_idx == -1:
+                current_idx = self.dlg.layersComboBox.findText(restoreDict['targetLayer']['name'])
+                if current_idx == -1:
+                    current_idx = 0
+            #print current_idx
+            
+            #If found sets layers combo box with provided layer, disconnecting update signals....
+            try:
+                self.dlg.layersComboBox.currentIndexChanged.disconnect(self.VectorLayerComboChanged)
+            except:
+                pass
+            self.dlg.layersComboBox.setCurrentIndex(current_idx)
+            self.dlg.layersComboBox.currentIndexChanged.connect(self.VectorLayerComboChanged)
+            S = QSettings()
+            QgsExpressionContextUtils.setProjectVariable('QgisODK_current_project',fileName)
 
     def run(self):
         self.populateVectorLayerCombo()
         self.ODKout(None)
+        ps = QgsExpressionContextUtils.projectScope()
+        if ps.hasVariable('QgisODK_current_project'):
+            #print 'LOADING ',ps.variable('QgisODK_current_project')
+            self.ODKLoadLayerStateAction(fileName=ps.variable('QgisODK_current_project'))
         self.dlg.show()
         self.dlg.raise_()
 

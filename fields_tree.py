@@ -147,7 +147,7 @@ class ODK_fields(QTreeView):
         model.itemChanged.connect(self.cleanTreeItem)
 
     def cleanTreeItem(self,item):
-        print "cleaning", item.text()
+        #print "cleaning", item.text()
         if item.index().column() == 0:
             item.setText(cleanXMLtag(item.text()))
 
@@ -342,7 +342,7 @@ class ODK_fields(QTreeView):
 
     def mapNameTofield(self,name):
         map = self.getFieldMappingDict()
-        if name in map.keys():
+        if map and name in map.keys():
             return map[name]
         else:
             return name
@@ -543,9 +543,9 @@ class ODKDelegate(QItemDelegate):
 
     def setModelData(self, editor, model, index):
         if index.column() == 0:
-            print "cleaning"
+            #print "cleaning"
             value = cleanXMLtag(editor.text())
-            print value
+            #print value
             model.setData(index, value)
         else:
             QItemDelegate.setModelData(self, editor, model, index)
@@ -706,11 +706,11 @@ class fieldItem(QStandardItem):
                 itemType = 'integer'
             elif field['fieldQtype'] == 'QString':
                 itemType = 'text'
-            elif field['fieldQtype'] == 'QDate':
+            elif field['fieldType'] in (14,16) :
                 itemType = 'datetime'
             elif field['fieldType'] in [6,38]:
                 itemType = 'decimal'
             else:
-                raise AttributeError("Can't cast QVariant to ODKType: " + field['fieldType'])
+                raise AttributeError("Can't cast QVariant to ODKType: " + str(field['fieldType']))
         return itemType
 

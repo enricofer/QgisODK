@@ -80,6 +80,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
         self.fieldMapping = {}
         # initialize QTranslator
         self.plugin_dir = os.path.dirname(__file__)
+        self.progressBar.setAlignment(Qt.AlignCenter)
         locale = QSettings().value('locale/userLocale')[0:2]
         locale_path = os.path.join(
             self.plugin_dir,
@@ -120,7 +121,11 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
         else:
             self.layerComboBox.setEnabled(False)
             self.fieldMapping = {}
-            for field in self.module.dlg.treeView.getFieldMappingDict().values():
+            if self.module.dlg.treeView.getFieldMappingDict():
+                target_fields = self.module.dlg.treeView.getFieldMappingDict().values()
+            else:
+                target_fields = self.collectedDataDict[0].keys()
+            for field in target_fields:
                 if field !='':
                     self.fieldMapping[slugify(field)] = field
             self.processingLayer = None
@@ -132,15 +137,18 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
         '''
         currentLayer = self.getCurrentLayer()
         currentLayerFields = {}
-        for field in currentLayer.pendingFields():
-            currentLayerFields[slugify(field.name())]=field.name() #dict with key slugified to simplify name match
-        self.fieldMapping = currentLayerFields
+        if currentLayer:
+            for field in currentLayer.pendingFields():
+                currentLayerFields[slugify(field.name())]=field.name() #dict with key slugified to simplify name match
+            self.fieldMapping = currentLayerFields
         self.populateFieldTable()
 
     def getCurrentLayer(self):
         return QgsMapLayerRegistry.instance().mapLayer(self.layerComboBox.itemData(self.layerComboBox.currentIndex(),Qt.UserRole))
 
     def view(self, surveyName, collectedData):
+        self.progressBar.hide()
+        self.buttonBox.setEnabled(True)
         if collectedData:
             self.collectedDataDict = collectedData
             self.checkSyncroAction()
@@ -154,7 +162,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
             importingFields = self.collectedDataDict[0].keys()
             self.fieldTable.clear()
             self.fieldTable.setRowCount(len(importingFields))
-            predefinedFields = ['EOMETRY','ODKUUID']
+            predefinedFields = ['EOMETRY','UUID']
             for row,field in enumerate(importingFields):
                 enabledItem = QTableWidgetItem()
                 enabledItem.setFlags(enabledItem.flags() | Qt.ItemIsUserCheckable)
@@ -185,17 +193,18 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                 '''
 
                 self.fieldTable.setItem(row,2,QGISfieldItem)
-                if field[-7:] in predefinedFields: #prevent predefined fields user editing
-                    if field[-7:] == 'ODKUUID':
-                        ODKfieldItem.setText('ODKUUID')
-                        QGISfieldItem.setText('ODKUUID')
-                    elif field[-7:] == 'EOMETRY':
-                        ODKfieldItem.setText('GEOMETRY')
-                        QGISfieldItem.setText('GEOMETRY')
-                    enabledItem.setCheckState(Qt.Checked)
-                    enabledItem.setFlags(enabledItem.flags() & Qt.ItemIsEditable)
-                    ODKfieldItem.setFlags(ODKfieldItem.flags() & Qt.ItemIsEditable)
-                    QGISfieldItem.setFlags(QGISfieldItem.flags() & Qt.ItemIsEditable)
+                for predef in predefinedFields:
+                    if predef in field.upper(): #prevent predefined fields user editing
+                        if predef == 'UUID':
+                            ODKfieldItem.setText(field)
+                            QGISfieldItem.setText('ODKUUID')
+                        elif predef == 'EOMETRY':
+                            ODKfieldItem.setText('GEOMETRY')
+                            QGISfieldItem.setText('GEOMETRY')
+                        enabledItem.setCheckState(Qt.Checked)
+                        enabledItem.setFlags(enabledItem.flags() & Qt.ItemIsEditable)
+                        ODKfieldItem.setFlags(ODKfieldItem.flags() & Qt.ItemIsEditable)
+                        QGISfieldItem.setFlags(QGISfieldItem.flags() & Qt.ItemIsEditable)
 
     def getExportFieldMap(self):
         exportFieldMap = {}
@@ -210,66 +219,114 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
         if self.collectedDataDict:
             exportMap = self.getExportFieldMap()
             cleanedDataDict = []
+            if self.syncroCheckBox.isChecked():
+                self.processingLayer = self.getCurrentLayer()
+                processingLayer_uuid_list = self.getUUIDList(self.processingLayer)
+                baseDir = os.path.abspath(QgsProject.instance().readPath("./"))
+            else:
+                workDir = QgsProject.instance().readPath("./")
+                geoJsonFileName = QFileDialog().getSaveFileName(None, self.tr("Save as GeoJson"), workDir, "*.geojson")
+                if not geoJsonFileName:
+                    return
+                baseDir = os.path.dirname(geoJsonFileName)
+
+            self.progressBar.setRange(0,len(self.collectedDataDict))
+            self.progressBar.show()
+            self.buttonBox.setEnabled(False)
+            count = 1
             for feature in self.collectedDataDict:
                 cleanedFeat = {}
+                self.progressBar.setValue(count)
+
+                if self.syncroCheckBox.isChecked():
+                    feature_uuid = None
+                    for key,value in feature.iteritems():
+                        if "UUID" in key.upper():
+                            #print "OK"
+                            feature_uuid = value
+                    if feature_uuid in processingLayer_uuid_list: #excluding already synced features 
+                        #print "exclude feature ", feature_uuid
+                        continue
+                 
                 for key,value in feature.iteritems():
                     if key == "GEOMETRY":
                         if "," in value: #geometry comes from google drive
                             value = value.replace(" ",";").replace(",", " ") # fixed comma/space/semicolon mismatch between odk aggregate and google drive
                         cleanedFeat["GEOMETRY"] = value
-                    elif key[-7:] == "ODKUUID":
+                    elif "UUID" in key.upper(): #key[-7:] == "ODKUUID"
                         cleanedFeat["ODKUUID"] = value
                     elif key in exportMap:
-                        cleanedFeat[exportMap[key]] = self.cleanURI(value) #Download and provide local URI if value is internet URI
+                        cleanedFeat[exportMap[key]] = self.cleanURI(value,baseDir,self.progressBar) #Download and provide local URI if value is internet URI
+                
+                count += 1
                 cleanedDataDict.append(cleanedFeat)
+                
             if self.syncroCheckBox.isChecked():
                 self.updateLayer(self.getCurrentLayer(),cleanedDataDict)
             else:
                 geojsonDict = self.module.settingsDlg.getLayerFromTable(cleanedDataDict)
                 if geojsonDict:
                     self.hide()
-                    workDir = QgsProject.instance().readPath("./")
-                    geoJsonFileName = QFileDialog().getSaveFileName(None, self.tr("Save as GeoJson"), workDir, "*.geojson")
                     if QFileInfo(geoJsonFileName).suffix() != "geojson":
                         geoJsonFileName += ".geojson"
                     with open(os.path.join(workDir,geoJsonFileName), "w") as geojson_file:
                         geojson_file.write(json.dumps(geojsonDict))
                     layer = self.iface.addVectorLayer(os.path.join(workDir,geoJsonFileName), QFileInfo(geoJsonFileName).baseName(), "ogr")
                     QgsMapLayerRegistry.instance().addMapLayer(layer)
+                    
+            self.progressBar.setValue(count)
+            self.buttonBox.setEnabled(True)
+                    
 
 
-    def cleanURI(self,URI):
-        
+    def cleanURI(self,URI,download_base_dir,widget = None):
         attachements = {}
         if isinstance(URI, basestring) and self.downloadCheckBox.isChecked() and (URI[0:7] == 'http://' or URI[0:8] == 'https://'):
             if self.processingLayer:
-                layerName = self.processingLayer
+                layerName = self.processingLayer.name()
             else:
                 layerName = 'odk'
             fileName = URI.split('/')[-1]
-            downloadDir = os.path.join(QgsProject.instance().readPath("./"),'attachments_%s' % layerName)
+            if widget:
+                progress = int(((widget.value()-widget.minimum())*100)/((widget.maximum()-widget.minimum())))
+                widget.setFormat("%s %d%%" % (fileName,progress));
+            downloadDir = os.path.join(download_base_dir,'attachments_%s' % layerName)
             if not os.path.exists(downloadDir):
                 os.makedirs(downloadDir)
             response = requests.get(URI, allow_redirects=True, stream=True, proxies=getProxiesConf())
             localAttachmentPath = os.path.abspath(os.path.join(downloadDir,fileName))
             if response.status_code == 200:
-                print "downloading",localAttachmentPath, URI
                 with open(localAttachmentPath, 'wb') as f:
                     for chunk in response:
                         f.write(chunk)
-                    localURI = localAttachmentPath
-                if self.relativePathsCheckBox.isChecked():
-                    return os.path.relpath(localURI,QgsProject.instance().readPath("./"))
-                else:
-                    return localURI
+                localURI = localAttachmentPath
+                try: 
+                    if self.relativePathsCheckBox.isChecked():
+                        localURI = os.path.relpath(localURI,QgsProject.instance().readPath("./"))
+                except:
+                    pass
+                return localURI
             else:
-                print 'error downloading remote file: ',response.reason
                 return 'error downloading remote file: ',response.reason
+        elif URI == 'n/a':
+            return None
         else:
             return URI
 
+    def getUUIDList(self,lyr):
+        uuidList = []
+        if lyr:
+            uuidFieldName = None
+            for field in lyr.pendingFields():
+                if 'UUID' in field.name().upper():
+                    uuidFieldName = field.name()
+            if uuidFieldName:
+                for qgisFeature in lyr.getFeatures():
+                    uuidList.append(qgisFeature[uuidFieldName])
+        return uuidList
 
     def updateLayer(self,layer,dataDict):
+        #print "UPDATING N.",len(dataDict),'FEATURES'
         self.processingLayer = layer
 
         uuid_found = None
@@ -287,10 +344,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
         #layer.beginEditCommand("ODK syncronize")
         layer.startEditing()
         
-        uuidList = []
-        for qgisFeature in layer.getFeatures():
-            if qgisFeature['ODKUUID']:
-                uuidList.append(qgisFeature['ODKUUID'])
+        uuidList = self.getUUIDList(self.processingLayer)
 
         newQgisFeatures = []
         fieldError = None

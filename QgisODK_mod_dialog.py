@@ -436,6 +436,7 @@ class ona(external_service):
         if XFormID:
             XFormKey, response = self.formIDToPk(XFormID)
             response, remoteTable = self.getTable(XFormKey)
+            #print "remoteTable",remoteTable
             self.importDataFromService.view(XFormID, remoteTable)
         else:
             self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
@@ -893,7 +894,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
                 newCsvList.append(newRow)
             return newCsvList
         else:
-            print "getTable", response, response.text
+            pass #print "getTable", response, response.text
 
     def setDataSubmissionTable(self,xForm_id):
         if not self.authorization:
