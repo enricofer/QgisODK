@@ -872,8 +872,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
         url = 'https://docs.google.com/spreadsheets/d/%s/export?format=csv&id=%s&gid=0' % (tableID,self.getValue("data collection table ID"))
         headers = {'Authorization': 'Bearer {}'.format(self.authorization['access_token']),
                    'Content-Type': 'application/json'}
-
-        response = requests.get(url, headers=headers)
+        response = requests.get(url, headers=headers, proxies = getProxiesConf())
         if response.status_code == 200:
             csvIO = StringIO.StringIO(response.text)
             csvIn = csv.DictReader(csvIO, delimiter=',', quotechar='"')
