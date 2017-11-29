@@ -578,8 +578,8 @@ class google_drive(external_service):
         self.importDataFromService = QgisODKimportDataFromService(self.module)
         self.authorization = None
         self.verification = None
-        self.client_id = "88596974458-r5dckj032ton00idb87c4oivqq2k1pks.apps.googleusercontent.com"
-        self.client_secret = "c6qKnhBdVxkPMH88lHf285hQ"
+        self.client_id = "19649210819-f02j5m4hvf9uefejacrs6bclubb57bei.apps.googleusercontent.com" #"88596974458-r5dckj032ton00idb87c4oivqq2k1pks.apps.googleusercontent.com"
+        self.client_secret = "vlvv3WCSFHgGvm3D_lQwTtNb" #"c6qKnhBdVxkPMH88lHf285hQ"
         self.getCollectors()
 
     def collectData(self):

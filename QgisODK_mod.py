@@ -395,11 +395,11 @@ class QgisODK:
 
         xForm_id = exportMethod(fileName=tmpXlsFileName)
         response = self.settingsDlg.sendForm(xForm_id,tmpXlsFileName)
-        os.remove(tmpXlsFileName)
         if not response.status_code in (200,201):
             self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("error saving form %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
         else:
             self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("form successfully exported"), level=QgsMessageBar.INFO, duration=6)
+        os.remove(tmpXlsFileName)
 
     
     def closeDlg(self):
