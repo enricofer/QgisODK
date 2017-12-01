@@ -51,14 +51,13 @@ class QgisODKChoices(QtGui.QDialog, Ui_ChoicesDialog):
         self.choicesTable.setColumnWidth(0, 127)
         self.choicesTable.setColumnWidth(1, 127)
         for i,choice in enumerate(choicesDict):
-            print choice
             choiceValueWidget = QTableWidgetItem(valueType)
             choiceLabelWidget = QTableWidgetItem()
             choiceValueWidget.setData(Qt.EditRole,choice)
-            choiceLabelWidget.setData(Qt.EditRole,choicesDict[choice])
             self.choicesTable.setItem(i,0,choiceValueWidget)
+            choiceLabelWidget.setData(Qt.EditRole,choicesDict[choice])
             self.choicesTable.setItem(i,1,choiceLabelWidget)
-        
+        self.choicesTable.sortItems(1)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
         
@@ -78,7 +77,7 @@ class QgisODKChoices(QtGui.QDialog, Ui_ChoicesDialog):
     def getChoicesJson(self):
         choicesDict = {}
         for i in range(0,self.choicesTable.rowCount()):
-            print self.choicesTable.item(i,0).data(Qt.EditRole)
+            #print self.choicesTable.item(i,0).data(Qt.EditRole)
             try:
                 choicesDict[self.choicesTable.item(i,0).data(Qt.EditRole)] = self.choicesTable.item(i,1).data(Qt.EditRole)
             except:
@@ -92,6 +91,7 @@ class QgisODKChoices(QtGui.QDialog, Ui_ChoicesDialog):
 
     @staticmethod
     def getChoices(choicesJson, qType, title=""):
+        print "CHOICE"
         dialog = QgisODKChoices(choicesJson, qType)
         dialog.setWindowTitle(title)
         result = dialog.exec_()

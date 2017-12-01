@@ -323,9 +323,15 @@ class QgisODK:
                 fieldDef['fieldEnabled'] = None
             else:
                 fieldDef['fieldEnabled'] = True
-            if fieldDef['fieldWidget'] in ('ValueMap','CheckBox','Photo','FileName'):
-                if fieldDef['fieldWidget'] == 'ValueMap':
+            if fieldDef['fieldWidget'] in ('ValueMap','ValueRelation','CheckBox','Photo','FileName'):
+                if fieldDef['fieldWidget'] =='ValueMap':
                     config = {v: k for k, v in currentFormConfig.widgetConfig(i).iteritems()}
+                elif fieldDef['fieldWidget'] == 'ValueRelation':
+                    relation_layer = QgsMapLayerRegistry.instance().mapLayer(currentFormConfig.widgetConfig(i)['Layer'])
+                    config = {}
+                    for feature in relation_layer.getFeatures():
+                        if feature[currentFormConfig.widgetConfig(i)['Key']]:
+                            config[feature[currentFormConfig.widgetConfig(i)['Key']]] = feature[currentFormConfig.widgetConfig(i)['Value']] or ''
                 else:
                     config = currentFormConfig.widgetConfig(i)
                 fieldDef['fieldChoices'] = config

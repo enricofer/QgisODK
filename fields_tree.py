@@ -694,7 +694,7 @@ class fieldItem(QStandardItem):
             field['fieldQtype'] = "UserType"
             return field['fieldType']
         field['fieldQtype'] = QVariant.typeToName(field['fieldType'])
-        if field['fieldWidget'] == "ValueMap": # First try to decode Qgis form widgets
+        if field['fieldWidget'] in ("ValueMap",'ValueRelation'): # First try to decode Qgis form widgets
             itemType = 'select one'
         elif field['fieldWidget'] == "CheckBox":
             itemType = 'select one'
