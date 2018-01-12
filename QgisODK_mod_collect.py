@@ -55,10 +55,11 @@ def getProxiesConf():
 
 class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
 
-    def __init__(self, module, parent = None):
+    def __init__(self, service, parent = None):
         """Constructor."""
-        self.iface = module.iface
-        self.module = module
+        self.service = service
+        self.module = service.module
+        self.iface = self.module.iface
         super(QgisODKimportDataFromService, self).__init__(parent)
         self.setupUi(self)
         self.syncroCheckBox.stateChanged.connect(self.checkSyncroAction)
@@ -281,6 +282,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
 
     def cleanURI(self,URI,download_base_dir,widget = None):
         attachements = {}
+        print URI,download_base_dir,widget
         if isinstance(URI, basestring) and self.downloadCheckBox.isChecked() and (URI[0:7] == 'http://' or URI[0:8] == 'https://'):
             if self.processingLayer:
                 layerName = self.processingLayer.name()
@@ -293,21 +295,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
             downloadDir = os.path.join(download_base_dir,'attachments_%s' % layerName)
             if not os.path.exists(downloadDir):
                 os.makedirs(downloadDir)
-            response = requests.get(URI, allow_redirects=True, stream=True, proxies=getProxiesConf())
-            localAttachmentPath = os.path.abspath(os.path.join(downloadDir,fileName))
-            if response.status_code == 200:
-                with open(localAttachmentPath, 'wb') as f:
-                    for chunk in response:
-                        f.write(chunk)
-                localURI = localAttachmentPath
-                try: 
-                    if self.relativePathsCheckBox.isChecked():
-                        localURI = os.path.relpath(localURI,QgsProject.instance().readPath("./"))
-                except:
-                    pass
-                return localURI
-            else:
-                return 'error downloading remote file: ',response.reason
+            return self.service.downloadMedia(URI,downloadDir)
         elif URI == 'n/a':
             return None
         else:

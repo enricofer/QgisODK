@@ -10,7 +10,7 @@
 name=QgisODK
 qgisMinimumVersion=2.14
 description= A tool for authoring and managing mobile surveys Open Data Kit (ODK) from QGIS
-version=1.8
+version=1.9
 author=Enrico Ferreguti
 email=enricofer@gmail.com
 
@@ -37,6 +37,7 @@ repository=https://github.com/enricofer/QgisODK
   1.6 issues behind proxy fixed
   1.7 data collection issues fixed, data collect dialog improvements, odk project linked to qgis project feature
   1.8 google api key renewal issue fixed
+  1.9 odk aggregate server support. Portions of the code is (C) 2017 by IIRS https://github.com/shivareddyiirs
 
 
 # Tags are comma separated with spaces allowed

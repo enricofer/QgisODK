@@ -353,14 +353,16 @@ class QgisODK:
         workDir = QgsProject.instance().readPath("./")
         if not fileName:
             fileName = QFileDialog().getSaveFileName(None, self.tr("Save XForm"), workDir, "*.xml")
-            exportToWebService = None
+            exportingToGDrive = None
+        elif self.settingsDlg.getCurrentService().hasValue('data collection table ID'):
+            exportingToGDrive = True
         else:
-            exportToWebService = True
+            exportingToGDrive = None
         if QFileInfo(fileName).suffix() != "xml":
             fileName += ".xml"
         json_out = self.dlg.treeView.renderToDict(service = self.settingsDlg.getServiceName())
         xForm_id = json_out["name"]
-        if exportToWebService: #if exporting to google drive a submission_url is embedded in XFORM
+        if exportingToGDrive: #if exporting to google drive a submission_url is embedded in XFORM
             if self.settingsDlg.getCurrentService().getValue('data collection table ID') == "":#autocreated
                 submission_url =  self.settingsDlg.setDataSubmissionTable(xForm_id)
             else: #user defined

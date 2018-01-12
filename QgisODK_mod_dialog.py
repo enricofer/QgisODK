@@ -9,6 +9,10 @@
         git sha              : $Format:%H$
         copyright            : (C) 2016 by Enrico Ferreguti
         email                : enricofer@gmail.com
+
+ portions of odk_aggregate class is
+        copyright            : (C) 2017 by IIRS - https://github.com/shivareddyiirs
+        email                : kotishiva@gmail.com
  ***************************************************************************/
 
 /***************************************************************************
@@ -29,6 +33,8 @@ import re
 import base64
 import StringIO
 import csv
+
+import xml.etree.ElementTree as ET
 
 from PyQt4 import QtGui
 from PyQt4.QtGui import QTableWidget, QWidget, QTableWidgetItem, QSizePolicy, QMessageBox
@@ -76,7 +82,7 @@ class internalBrowser(QtGui.QDialog, Ui_InternalBrowser):
     def __init__(self, target, parent = None):
         super(internalBrowser, self).__init__(parent)
         self.setupUi(self)
-        #self.webView.page().setNetworkAccessManager(QgsNetworkAccessManager.instance())
+        self.webView.page().setNetworkAccessManager(QgsNetworkAccessManager.instance())
         if target[0:4] == 'http':
             self.setWindowTitle('Help')
             self.webView.setUrl(QUrl(target))
@@ -179,7 +185,7 @@ class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
 class QgisODKServices(QtGui.QDialog, Ui_ServicesDialog):
 
     services = [
-        'ona', 'google_drive'
+        'ona', 'google_drive', 'odk_aggregate'
     ]
     
 
@@ -277,6 +283,7 @@ class external_service(QTableWidget):
         super(external_service, self).__init__(parent)
         self.parent = parent
         self.module = parent.parent().parent().parent().module
+        self.importDataFromService = QgisODKimportDataFromService(self)
         self.iface = parent.parent().parent().parent().module.iface
         self.resize(QSize(310,260))
         self.setColumnCount(2)
@@ -311,7 +318,10 @@ class external_service(QTableWidget):
         S.setValue("qgisodk/", self.parent.parent().currentIndex())
         for row in range (0,self.rowCount()):
             S.setValue("qgisodk/%s/%s/" % (self.service_id,self.item(row,0).text()),self.item(row,1).text())
-        
+
+    def getAuth(self):
+        return None
+
     def getValue(self,key, newValue = None):
         if key == 'download_attachments':
             return self.parent.parent().parent().parent().attachmentsCheckBox.isChecked()
@@ -322,6 +332,12 @@ class external_service(QTableWidget):
                     self.setup() #store to settings
                 return self.item(row,1).text()
         raise AttributeError("key not found: " + key)
+
+    def hasValue(self,key):
+        for row in range (0,self.rowCount()):
+            if self.item(row,0).text() == key:
+                return True
+        return None
 
     def guessGeomType(self,geom):
         coordinates = geom.split(';')
@@ -350,6 +366,77 @@ class external_service(QTableWidget):
             self.getValue(param[0], newValue=param[1])
         self.setup
 
+    def getLayerFromTable(self, remoteData, ):
+        geojson = {
+            "type": "FeatureCollection",
+            "crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"}},
+            "features": []
+        }
+        print remoteData
+        for record in remoteData:
+            if 'GEOMETRY' in record:
+                geomType, geomCoordinates = self.guessGeomType(record['GEOMETRY'])
+                feature = {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": {
+                        "type": geomType
+                    }
+                }
+
+                # build geojson geometry
+                jsonCoordinates = []
+                for geomCoordinate in geomCoordinates:
+                    jsonCoordinates.append([float(geomCoordinate[1]), float(geomCoordinate[0])])
+                if geomType == 'Point':
+                    feature["geometry"]["coordinates"] = [jsonCoordinates[0][0], jsonCoordinates[0][1]]
+                if geomType == 'LineString':
+                    feature["geometry"]["coordinates"] = jsonCoordinates
+                if geomType == 'Polygon':
+                    feature["geometry"]["coordinates"] = [jsonCoordinates]
+            else:
+                feature = {
+                    "type": "Feature",
+                    "properties": {},
+                    "geometry": None
+                }
+
+            # build geojson properties
+            for fieldKey, fieldValue in record.iteritems():
+                if not fieldKey in ('GEOMETRY',):  # field exclusion
+                    feature["properties"][fieldKey] = fieldValue
+
+            geojson["features"].append(feature)
+
+        # metadata = self.getMetadataFromID(self.getValue("data collection table ID"))
+        # if metadata:
+        #    layerName = metadata['name']
+        # else:
+        #    layerName = self.tr('collected-data')
+
+        return geojson
+
+    def downloadMedia(self, URI, downloadDir):
+        #fileName = URI.split('/')[-1]
+        response = requests.get(URI, allow_redirects=True, stream=True, proxies=getProxiesConf(),
+                                auth=self.getAuth())
+        fileName = re.findall('filename="([^"]*)"', response.headers['content-disposition'])[0]
+        print ("content", fileName,response.headers['content-disposition'], response.status_code)
+        localAttachmentPath = os.path.abspath(os.path.join(downloadDir, fileName))
+        if response.status_code == 200:
+            with open(localAttachmentPath, 'wb') as f:
+                for chunk in response:
+                    f.write(chunk)
+            localURI = localAttachmentPath
+            try:
+                if self.relativePathsCheckBox.isChecked():
+                    localURI = os.path.relpath(localURI, QgsProject.instance().readPath("./"))
+            except:
+                pass
+            return localURI
+        else:
+            return "can't download media: " + str(response.reason)
+
 
 class ona(external_service):
     parameters = [
@@ -359,10 +446,12 @@ class ona(external_service):
         ["user", ""],
         ["password", ""],
     ]
-    
+
+    def getAuth(self):
+        return requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password"))
+
     def __init__(self, parent):
         super(ona, self).__init__(parent,self.parameters)
-        self.importDataFromService = QgisODKimportDataFromService(self.module)
 
     def getExportMethod(self):
         return 'exportXlsForm'
@@ -372,7 +461,7 @@ class ona(external_service):
     
     def getAvailableDataCollections(self):
         url = 'https://api.ona.io/api/v1/projects/%s/forms' % self.getValue("project_id")
-        response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = getProxiesConf())
+        response = requests.get(url, auth=self.getAuth(), proxies = getProxiesConf())
         if response.status_code != requests.codes.ok:
             return None, response
         forms = response.json()
@@ -384,7 +473,7 @@ class ona(external_service):
     def formIDToPk(self,xForm_id):
         #verify if form exists:
         url = 'https://api.ona.io/api/v1/projects/%s/forms' % self.getValue("project_id")
-        response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = getProxiesConf())
+        response = requests.get(url, auth=self.getAuth(), proxies = getProxiesConf())
         if response.status_code != requests.codes.ok:
             return None, response
         forms = response.json()
@@ -409,7 +498,7 @@ class ona(external_service):
             url = 'https://api.ona.io/api/v1/projects/%s/forms' % self.getValue("project_id")
         #step1 - upload form: POST if new PATCH if exixtent
         files = {'xls_file': (xForm, open(xForm, 'rb'), 'application/vnd.ms-excel', {'Expires': '0'})}
-        response = requests.request(method, url, files=files, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = getProxiesConf())#, proxies = proxyDict,headers={'Content-Type': 'application/octet-stream'})
+        response = requests.request(method, url, files=files, auth=self.getAuth(), proxies = getProxiesConf())#, proxies = proxyDict,headers={'Content-Type': 'application/octet-stream'})
         return response
 
     def getUUIDfield(self):
@@ -422,7 +511,7 @@ class ona(external_service):
             return response
         if form_key:
             url = 'https://api.ona.io/api/v1/data/%s' % form_key
-            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = getProxiesConf())
+            response = requests.get(url, auth=self.getAuth(), proxies = getProxiesConf())
             return response
 
     def setDataSubmissionTable(self,xForm_id):
@@ -442,7 +531,6 @@ class ona(external_service):
             self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
                                                 self.tr("no data collect table selected"),
                                                 level=QgsMessageBar.CRITICAL, duration=6)
-        
 
     def getTable(self,form_key):
         #step1 - verify if form exists:
@@ -462,7 +550,7 @@ class ona(external_service):
         
         if form_key:
             url = 'https://api.ona.io/api/v1/data/%s.csv' % form_key
-            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(self.getValue("user"), self.getValue("password")), proxies = getProxiesConf())
+            response = requests.get(url, auth=self.getAuth(), proxies = getProxiesConf())
             if response.status_code == 200:
                 csvIO = StringIO.StringIO(response.text)
                 csvIn = UnicodeDictReader(csvIO, delimiter=',', quotechar='"')
@@ -575,7 +663,6 @@ class google_drive(external_service):
 
     def __init__(self, parent):
         super(google_drive, self).__init__(parent,self.parameters)
-        self.importDataFromService = QgisODKimportDataFromService(self.module)
         self.authorization = None
         self.verification = None
         self.client_id = "19649210819-f02j5m4hvf9uefejacrs6bclubb57bei.apps.googleusercontent.com" #"88596974458-r5dckj032ton00idb87c4oivqq2k1pks.apps.googleusercontent.com"
@@ -627,7 +714,7 @@ class google_drive(external_service):
         url = 'https://www.googleapis.com/gmail/v1/users/me/messages/send'
         headers = {'Authorization': 'Bearer {}'.format(self.authorization['access_token']), 'Content-Type': 'application/json'}
 
-        response = requests.post(url,headers = headers, data = json.dumps(body), proxies = getProxiesConf())
+        response = requests.post(url,headers = headers, data = json.dumps(body), proxies = getProxiesConf(), verify=False)
 
     def notify(self,XFormName,XFormFolder,collectTableId,collectTableName):
         if self.getValue('notifications?(YES/NO)').upper() == 'YES':
@@ -653,7 +740,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
                 "type": type,
                 "emailAddress": email
             }
-            response = requests.post(url, headers=headers, data=json.dumps(metadata), proxies = getProxiesConf())
+            response = requests.post(url, headers=headers, data=json.dumps(metadata), proxies = getProxiesConf(), verify=False)
 
 
     def getExportMethod(self):
@@ -668,7 +755,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
         url = 'https://www.googleapis.com/drive/v3/files'
         headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token'])}
         params = {"q": "name = '%s'" % fileName, "spaces": "drive"}
-        response = requests.get( url, headers = headers, params = params, proxies = getProxiesConf() )
+        response = requests.get( url, headers = headers, params = params, proxies = getProxiesConf(), verify=False )
         if response.status_code == requests.codes.ok:
             found = response.json()
             files = found['files']
@@ -688,7 +775,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             self.get_authorization()
         url = 'https://www.googleapis.com/drive/v3/files/'+fileID
         headers = { 'Authorization':'Bearer {}'.format(self.authorization['access_token'])}
-        response = requests.get( url, headers = headers, proxies = getProxiesConf())
+        response = requests.get( url, headers = headers, proxies = getProxiesConf(), verify=False)
         if response.status_code == requests.codes.ok:
             return response.json()
         else:
@@ -703,7 +790,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
         headers = {'Authorization':'Bearer {}'.format(self.authorization['access_token'])}
         folderID = self.getIdFromName(self.getValue('folder'), mimeType = 'application/vnd.google-apps.folder')
         params = {"q": "mimeType = 'application/vnd.google-apps.spreadsheet' and '%s' in parents" % folderID, "spaces": "drive"}
-        response = requests.get( url, headers = headers, params = params, proxies = getProxiesConf() )
+        response = requests.get( url, headers = headers, params = params, proxies = getProxiesConf(), verify=False )
         if response.status_code == requests.codes.ok:
             files = response.json()["files"]
             filesList = []
@@ -735,7 +822,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             }
             if parentsId:
                 metadata['parents'] = [parentsId]
-            response = requests.post( url, headers = headers, data = json.dumps(metadata), proxies = getProxiesConf())
+            response = requests.post( url, headers = headers, data = json.dumps(metadata), proxies = getProxiesConf(), verify=False)
             if response.status_code != 200 or 'error' in response.json():
                 return None
             return response.json()['id']
@@ -748,7 +835,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             'scope': 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/gmail.send', #'https://www.googleapis.com/auth/drive.file',
             'login_hint': self.getValue('google drive login')
         }
-        response = requests.post('https://accounts.google.com/o/oauth2/v2/auth', params=verification_params, proxies = getProxiesConf())
+        response = requests.post('https://accounts.google.com/o/oauth2/v2/auth', params=verification_params, proxies = getProxiesConf(), verify=False)
         if response.status_code == requests.codes.ok:
             self.verification = internalBrowser.getCode(response.text, self.getValue('google drive login'))
 
@@ -764,7 +851,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             'grant_type': 'authorization_code',
             'redirect_uri': 'urn:ietf:wg:oauth:2.0:oob:auto'
         }
-        response = requests.post('https://www.googleapis.com/oauth2/v4/token', params=authorization_params, proxies = getProxiesConf())
+        response = requests.post('https://www.googleapis.com/oauth2/v4/token', params=authorization_params, proxies = getProxiesConf(), verify=False)
         if response.status_code == requests.codes.ok:
             authorization = response.json()
             if 'error' in authorization:
@@ -821,6 +908,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
             "features": []
         }
+        print remoteData
         for record in remoteData:
             if 'GEOMETRY' in record:
                 geomType, geomCoordinates = self.guessGeomType(record['GEOMETRY'])
@@ -855,12 +943,6 @@ https://docs.google.com/spreadsheets/d/%s/edit
                     feature["properties"][fieldKey] = fieldValue
 
             geojson["features"].append(feature)
-
-        #metadata = self.getMetadataFromID(self.getValue("data collection table ID"))
-        #if metadata:
-        #    layerName = metadata['name']
-        #else:
-        #    layerName = self.tr('collected-data')
         
         return geojson
 
@@ -872,7 +954,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
         url = 'https://docs.google.com/spreadsheets/d/%s/export?format=csv&id=%s&gid=0' % (tableID,self.getValue("data collection table ID"))
         headers = {'Authorization': 'Bearer {}'.format(self.authorization['access_token']),
                    'Content-Type': 'application/json'}
-        response = requests.get(url, headers=headers, proxies = getProxiesConf())
+        response = requests.get(url, headers=headers, proxies = getProxiesConf(), verify=False)
         if response.status_code == 200:
             csvIO = StringIO.StringIO(response.text)
             csvIn = csv.DictReader(csvIO, delimiter=',', quotechar='"')
@@ -908,7 +990,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
         self.shareFileWithCollectors(content_table_id,role='writer')
         if content_table_id:
             url = 'https://www.googleapis.com/drive/v3/files/'+content_table_id
-            response = requests.get(url,headers = headers, proxies = getProxiesConf())
+            response = requests.get(url,headers = headers, proxies = getProxiesConf(), verify=False)
             self.notify(xForm_id,self.getValue('folder'),response.json()['id'],response.json()['name'])
             return 'https://docs.google.com/spreadsheets/d/%s/edit' % response.json()['id']
         else:
@@ -943,7 +1025,123 @@ https://docs.google.com/spreadsheets/d/%s/edit
 
         file = (xForm,open(xForm,'r'),'text/xml')
         files = {'data':data, 'file':file }
-        response = requests.request(method, url, headers = headers, files = files, proxies = getProxiesConf() )
+        response = requests.request(method, url, headers = headers, files = files, proxies = getProxiesConf(), verify=False )
         self.shareFileWithCollectors(response.json()['id'],role='reader')
 
         return response
+
+class odk_aggregate(external_service):
+    """
+    (C) 2017 by IIRS - https://github.com/shivareddyiirs
+    """
+
+    parameters = [
+        ["id", "aggregate"],
+        ["url", ''],
+        ["user", ''],
+        ["password", ''],
+    ]
+
+    def __init__(self, parent):
+        super(odk_aggregate, self).__init__(parent,self.parameters)
+        #self.importDataFromService = QgisODKimportDataFromService(self.module)
+
+    def getAuth(self):
+        auth = requests.auth.HTTPDigestAuth(self.getValue('user'),self.getValue('password'))
+        print "auth",auth
+        return auth
+
+    def getAvailableDataCollections(self):
+        method='GET'
+        url=self.getValue('url')+'//formList'
+        response= requests.request(method,url,proxies=getProxiesConf(),auth=self.getAuth(),verify=False)
+        root=ET.fromstring(response.content)
+        keylist=[form.attrib['url'].split('=')[1] for form in root.findall('form')]
+        return keylist,response
+
+    def getExportMethod(self):
+        return 'exportXForm'
+
+    def getExportExtension(self):
+        return 'xml'
+
+    def sendForm(self, xForm_id, xForm):
+        #        step1 - verify if form exists:
+        formList, response = self.getAvailableDataCollections()
+        form_key = xForm_id in formList
+        if response.status_code != requests.codes.ok:
+            return response
+        message = ''
+        if form_key:
+            message = 'Form Updated'
+            method = 'POST'
+            url = self.getValue('url') + '//formUpload'
+        else:
+            message = 'Created new form'
+            method = 'POST'
+            url = self.getValue('url') + '//formUpload'
+        files = open(xForm, 'r')
+        files = {'form_def_file': files}
+        response = requests.request(method, url, files=files, proxies=getProxiesConf(), auth=self.getAuth(), verify=False)
+        if response.status_code == 201:
+            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"),
+                                                self.tr('Layer is online(' + message + '), Collect data from App'),
+                                                level=QgsMessageBar.SUCCESS, duration=6)
+        elif response.status_code == 409:
+            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"),
+                                                self.tr("Form exist and can not be updated"),
+                                                level=QgsMessageBar.CRITICAL, duration=6)
+        else:
+            self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"),
+                                                self.tr("Form is not sent "),
+                                                level=QgsMessageBar.CRITICAL, duration=6)
+        return response
+
+    def collectData(self):
+        '''
+        interactive table selection
+        '''
+        XFormID = QgisODKImportCollectedData.getXFormID(self)
+        if XFormID:
+            response, remoteTable = self.getTable(XFormID)
+            self.importDataFromService.view(XFormID, remoteTable)
+        else:
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
+                                                self.tr("no data collect table selected"),
+                                                level=QgsMessageBar.CRITICAL, duration=6)
+
+
+    def getTable(self, XFormKey):
+        url = self.getValue('url') + '/view/submissionList?formId=' + XFormKey
+        method = 'GET'
+        table = []
+        response = requests.request(method, url, proxies=getProxiesConf(), auth=self.getAuth(), verify=False)
+        if not response.status_code == 200:
+            return response, table
+        #try:
+        root = ET.fromstring(response.content)
+        ns = '{http://opendatakit.org/submissions}'
+        instance_ids = [child.text for child in root[0].findall(ns + 'id')]
+        for id in instance_ids:
+            if id:
+                url = self.getValue(
+                    'url') + '/view/downloadSubmission?formId={}[@version=null and @uiVersion=null]/{}[@key={}]'.format(
+                    XFormKey, XFormKey, id)
+                print (url)
+                response = requests.request(method, url, proxies=getProxiesConf() ,auth=self.getAuth(), verify=False)
+                if not response.status_code == 200:
+                    print response, table
+                    return response, table
+                root1 = ET.fromstring(response.content)
+                data = root1[0].findall(ns + XFormKey)
+                dict = {child.tag.replace(ns, ''): child.text for child in data[0]}
+                dict['UUID'] = id
+                print(id,dict)
+                mediaFile = root1.findall(ns + 'mediaFile')
+                if len(mediaFile) > 0:
+                    mediaDict = {child.tag.replace(ns, ''): child.text for child in mediaFile[0]}
+                    for key, value in dict.iteritems():
+                        if value == mediaDict['filename']:
+                            dict[key] = mediaDict['downloadUrl']
+                table.append(dict)
+        return response, table
