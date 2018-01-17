@@ -1,4 +1,19 @@
 # QGISODK #
+[1 About the plugin](#1-about-the-plugin)
+
+[2 Survey design from layer properties](#2-survey-design-from-layer-properties)
+
+[3 The main dialog window ](#3-the-main-dialog-window)
+
+[4 Exporting the form](#4-exporting-the-form)
+
+[5 QGISODK and ona.io](#5-qgisodk-and-onaio)
+
+[6 QGISODK and google drive](#6-qgisodk-and-google-drive)
+
+[7 QGISODK and ODK aggregate](#7-qgisodk-and-odk-aggregate)
+
+[8 Importing Collected Data](#8-importing-collected-data)
 
 ## 1 About the plugin
 ![](icon.svg) 
@@ -155,7 +170,11 @@ Pushing "export to web service" button in main dialog, the user will be prompted
 
 ![](doc/15-odk-collect3.png)
 
-## 7 Importing Collected Data
+## 7 QGISODK and ODK aggregate
+the plugin, from release 1.9, supports ODK aggregate server.
+Simply fill server hostname and credentials "in odk aggregate" settings slot and you will be able to upload XForms to server and download submissions with their attachments.
+
+## 8 Importing Collected Data
 
 Once survey activity started, the survey admin can import collected data pushing on "import collected data" button. The user select the table to be imported from the available ones, then configure import parameters in the data in the "import collected data" dialog.
 
