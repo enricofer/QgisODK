@@ -908,7 +908,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
             "features": []
         }
-        print remoteData
+        #print remoteData
         for record in remoteData:
             if 'GEOMETRY' in record:
                 geomType, geomCoordinates = self.guessGeomType(record['GEOMETRY'])
@@ -1112,8 +1112,19 @@ class odk_aggregate(external_service):
 
 
     def getTable(self, XFormKey):
-        url = self.getValue('url') + '/view/submissionList?formId=' + XFormKey
         method = 'GET'
+        #detect topelement
+        url = self.getValue('url')  + '/formXml?formId=' + XFormKey
+        response = requests.request(method, url, proxies=getProxiesConf(), auth=self.getAuth(), verify=False)
+        root = ET.fromstring(response.content)
+        topElement = ''
+        for sub_elem in root.iter():
+            if sub_elem.get('id'):
+                print sub_elem.tag, sub_elem.get('id')
+                if sub_elem.get('id') == XFormKey:
+                    topElement = re.sub("[\{].*?[\}]", "",sub_elem.tag)
+        print "topElement", topElement
+        url = self.getValue('url') + '/view/submissionList?formId=' + XFormKey
         table = []
         response = requests.request(method, url, proxies=getProxiesConf(), auth=self.getAuth(), verify=False)
         if not response.status_code == 200:
@@ -1126,22 +1137,23 @@ class odk_aggregate(external_service):
             if id:
                 url = self.getValue(
                     'url') + '/view/downloadSubmission?formId={}[@version=null and @uiVersion=null]/{}[@key={}]'.format(
-                    XFormKey, XFormKey, id)
+                    XFormKey,topElement, id)
                 print (url)
                 response = requests.request(method, url, proxies=getProxiesConf() ,auth=self.getAuth(), verify=False)
                 if not response.status_code == 200:
                     print response, table
                     return response, table
                 root1 = ET.fromstring(response.content)
-                data = root1[0].findall(ns + XFormKey)
-                dict = {child.tag.replace(ns, ''): child.text for child in data[0]}
-                dict['UUID'] = id
-                print(id,dict)
-                mediaFile = root1.findall(ns + 'mediaFile')
-                if len(mediaFile) > 0:
-                    mediaDict = {child.tag.replace(ns, ''): child.text for child in mediaFile[0]}
-                    for key, value in dict.iteritems():
-                        if value == mediaDict['filename']:
-                            dict[key] = mediaDict['downloadUrl']
-                table.append(dict)
+                data = root1[0].findall(ns + topElement)
+                if data:
+                    dict = {child.tag.replace(ns, ''): child.text for child in data[0]}
+                    dict['UUID'] = id
+                    print(id,dict)
+                    mediaFile = root1.findall(ns + 'mediaFile')
+                    if len(mediaFile) > 0:
+                        mediaDict = {child.tag.replace(ns, ''): child.text for child in mediaFile[0]}
+                        for key, value in dict.iteritems():
+                            if value == mediaDict['filename']:
+                                dict[key] = mediaDict['downloadUrl']
+                    table.append(dict)
         return response, table

@@ -282,7 +282,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
 
     def cleanURI(self,URI,download_base_dir,widget = None):
         attachements = {}
-        print URI,download_base_dir,widget
+        #print URI,download_base_dir,widget
         if isinstance(URI, basestring) and self.downloadCheckBox.isChecked() and (URI[0:7] == 'http://' or URI[0:8] == 'https://'):
             if self.processingLayer:
                 layerName = self.processingLayer.name()
@@ -402,16 +402,20 @@ class collectDelegate(QItemDelegate):
 
     def createEditor (self, parent, option, index):
         column = index.column()
+        row = index.row()
         self.index = index
         content = index.model().data(index, Qt.EditRole)
         if column == 2:
-            self.content = index.model().data(index, Qt.EditRole)
+            content = index.model().data(index, Qt.EditRole)
+            label = index.model().data(index.model().index(row,1), Qt.EditRole)
             self.editorQWidget = QComboBox(parent)
             self.editorQWidget.setEditable(True)
             self.editorQWidget.addItems(self.module.fieldMapping.values())
-            if self.content in self.module.fieldMapping.values():
-                self.editorQWidget.setCurrentIndex(self.editorQWidget.findData(self.content))
+            self.editorQWidget.addItems(['GEOMETRY','ODKUUID'])
+            if content in self.module.fieldMapping.values():
+                self.editorQWidget.setCurrentIndex(self.editorQWidget.findData(content))
             else:
+                self.editorQWidget.insertItem(0,label)
                 self.editorQWidget.insertItem(0,'')
                 self.editorQWidget.setCurrentIndex(0)
             return self.editorQWidget
