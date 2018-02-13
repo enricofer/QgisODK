@@ -732,6 +732,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
 
 
     def shareFileWithCollectors(self, id, role = 'reader', type = 'user'):
+        self.getCollectors()
         url = 'https://www.googleapis.com/drive/v3/files/%s/permissions' % id
         headers = {'Authorization': 'Bearer {}'.format(self.authorization['access_token']), 'Content-Type': 'application/json'}
         for email in self.collectors:
@@ -741,7 +742,6 @@ https://docs.google.com/spreadsheets/d/%s/edit
                 "emailAddress": email
             }
             response = requests.post(url, headers=headers, data=json.dumps(metadata), proxies = getProxiesConf(), verify=False)
-
 
     def getExportMethod(self):
         return 'exportXForm'
