@@ -214,11 +214,18 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                 fieldSource = self.fieldTable.item(row,1).text()
                 fieldTarget = self.fieldTable.item(row,2).text()
                 exportFieldMap[fieldSource] = (fieldTarget or fieldSource)
-        return exportFieldMap
+        print exportFieldMap
+        if 'GEOMETRY' in exportFieldMap.values():
+            return exportFieldMap
+        else:
+            return None
 
     def accept(self):
         if self.collectedDataDict:
             exportMap = self.getExportFieldMap()
+            if not exportMap:
+                self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("No 'GEOMETRY' field in field mapping, can't import ODK layer") , level=QgsMessageBar.WARNING, duration=6)
+                return
             cleanedDataDict = []
             if self.syncroCheckBox.isChecked():
                 self.processingLayer = self.getCurrentLayer()
@@ -408,17 +415,21 @@ class collectDelegate(QItemDelegate):
         if column == 2:
             content = index.model().data(index, Qt.EditRole)
             label = index.model().data(index.model().index(row,1), Qt.EditRole)
+            checkrowIndex = index.model().index(row,0)
+            checkrowIndex = index.model().data(index.model().index(row,0), Qt.CheckStateRole)
             self.editorQWidget = QComboBox(parent)
             self.editorQWidget.setEditable(True)
             self.editorQWidget.addItems(self.module.fieldMapping.values())
             self.editorQWidget.addItems(['GEOMETRY','ODKUUID'])
             if content in self.module.fieldMapping.values():
                 self.editorQWidget.setCurrentIndex(self.editorQWidget.findData(content))
+                #self.module.fieldTable.item(row,0).setCheckState(Qt.Checked)
             else:
-                self.editorQWidget.insertItem(0,label)
+                #self.editorQWidget.insertItem(0,label)
                 self.editorQWidget.insertItem(0,'')
+                #self.module.fieldTable.item(row,0).setCheckState(Qt.Unchecked)
                 self.editorQWidget.setCurrentIndex(0)
             return self.editorQWidget
         else:
             return None
-            return QItemDelegate.createEditor(self, parent, option, index)
+        return QItemDelegate.createEditor(self, parent, option, index)
