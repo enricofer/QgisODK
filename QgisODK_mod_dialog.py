@@ -578,8 +578,8 @@ class google_drive(external_service):
         self.importDataFromService = QgisODKimportDataFromService(self.module)
         self.authorization = None
         self.verification = None
-        self.client_id = "19649210819-f02j5m4hvf9uefejacrs6bclubb57bei.apps.googleusercontent.com" #"88596974458-r5dckj032ton00idb87c4oivqq2k1pks.apps.googleusercontent.com"
-        self.client_secret = "vlvv3WCSFHgGvm3D_lQwTtNb" #"c6qKnhBdVxkPMH88lHf285hQ"
+        self.client_id = "88596974458-r5dckj032ton00idb87c4oivqq2k1pks.apps.googleusercontent.com"
+        self.client_secret = "c6qKnhBdVxkPMH88lHf285hQ"
         self.getCollectors()
 
     def collectData(self):
@@ -872,7 +872,8 @@ https://docs.google.com/spreadsheets/d/%s/edit
         url = 'https://docs.google.com/spreadsheets/d/%s/export?format=csv&id=%s&gid=0' % (tableID,self.getValue("data collection table ID"))
         headers = {'Authorization': 'Bearer {}'.format(self.authorization['access_token']),
                    'Content-Type': 'application/json'}
-        response = requests.get(url, headers=headers, proxies = getProxiesConf())
+
+        response = requests.get(url, headers=headers)
         if response.status_code == 200:
             csvIO = StringIO.StringIO(response.text)
             csvIn = csv.DictReader(csvIO, delimiter=',', quotechar='"')
