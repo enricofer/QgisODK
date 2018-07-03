@@ -372,7 +372,6 @@ class external_service(QTableWidget):
             "crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"}},
             "features": []
         }
-        print remoteData
         for record in remoteData:
             if 'GEOMETRY' in record:
                 geomType, geomCoordinates = self.guessGeomType(record['GEOMETRY'])
@@ -415,28 +414,6 @@ class external_service(QTableWidget):
         #    layerName = self.tr('collected-data')
 
         return geojson
-
-    def downloadMedia(self, URI, downloadDir):
-        #fileName = URI.split('/')[-1]
-        response = requests.get(URI, allow_redirects=True, stream=True, proxies=getProxiesConf(),
-                                auth=self.getAuth())
-        fileName = re.findall('filename="([^"]*)"', response.headers['content-disposition'])[0]
-        print ("content", fileName,response.headers['content-disposition'], response.status_code)
-        localAttachmentPath = os.path.abspath(os.path.join(downloadDir, fileName))
-        if response.status_code == 200:
-            with open(localAttachmentPath, 'wb') as f:
-                for chunk in response:
-                    f.write(chunk)
-            localURI = localAttachmentPath
-            try:
-                if self.relativePathsCheckBox.isChecked():
-                    localURI = os.path.relpath(localURI, QgsProject.instance().readPath("./"))
-            except:
-                pass
-            return localURI
-        else:
-            return "can't download media: " + str(response.reason)
-
 
 class ona(external_service):
     parameters = [
@@ -648,6 +625,22 @@ class ona(external_service):
             geojson["features"].append(feature)
 
         return geojson
+
+    def downloadMedia(self, URI, downloadDir):
+        fileName = URI.split('/')[-1]
+        #downloadDir = os.path.join(QgsProject.instance().readPath("./"),'attachments_%s' % layerName)
+        if not os.path.exists(downloadDir):
+            os.makedirs(downloadDir)
+        response = requests.get(URI, allow_redirects=True, stream=True, proxies=getProxiesConf())
+        localAttachmentPath = os.path.abspath(os.path.join(downloadDir,fileName))
+        if response.status_code == 200:
+            with open(localAttachmentPath, 'wb') as f:
+                for chunk in response:
+                    f.write(chunk)
+                return localAttachmentPath
+        else:
+            print 'error downloading remote file: ',str(response.reason)
+            return 'error downloading remote file: ',str(response.reason)
 
 
 class google_drive(external_service):
@@ -1030,6 +1023,24 @@ https://docs.google.com/spreadsheets/d/%s/edit
 
         return response
 
+    def downloadMedia(self, URL, downloadDir):
+        if not os.path.exists(downloadDir):
+            os.makedirs(downloadDir)
+        headers = {'Authorization': 'Bearer {}'.format(self.authorization['access_token'])}
+        response = requests.get(URL, allow_redirects=True, proxies=getProxiesConf(), headers=headers)
+        print (response.headers, response.text)
+        if response.status_code == 200:
+            d = response.headers['content-disposition']
+            fileName = re.findall("filename=(.+)", d)[0].replace('"','')
+            localAttachmentPath = os.path.abspath(os.path.join(downloadDir,fileName))
+            with open(localAttachmentPath, 'wb') as f:
+                for chunk in response:
+                    f.write(chunk)
+                return localAttachmentPath
+        else:
+            print 'error downloading remote file: ',str(response.reason)
+            return 'error downloading remote file: ',str(response.reason)
+
 class odk_aggregate(external_service):
     """
     (C) 2017 by IIRS - https://github.com/shivareddyiirs
@@ -1048,7 +1059,7 @@ class odk_aggregate(external_service):
 
     def getAuth(self):
         auth = requests.auth.HTTPDigestAuth(self.getValue('user'),self.getValue('password'))
-        print "auth",auth
+        #print "auth",auth
         return auth
 
     def getAvailableDataCollections(self):
@@ -1123,7 +1134,7 @@ class odk_aggregate(external_service):
                 print sub_elem.tag, sub_elem.get('id')
                 if sub_elem.get('id') == XFormKey:
                     topElement = re.sub("[\{].*?[\}]", "",sub_elem.tag)
-        print "topElement", topElement
+        #print "topElement", topElement
         url = self.getValue('url') + '/view/submissionList?formId=' + XFormKey
         table = []
         response = requests.request(method, url, proxies=getProxiesConf(), auth=self.getAuth(), verify=False)
@@ -1138,17 +1149,14 @@ class odk_aggregate(external_service):
                 url = self.getValue(
                     'url') + '/view/downloadSubmission?formId={}[@version=null and @uiVersion=null]/{}[@key={}]'.format(
                     XFormKey,topElement, id)
-                print (url)
                 response = requests.request(method, url, proxies=getProxiesConf() ,auth=self.getAuth(), verify=False)
                 if not response.status_code == 200:
-                    print response, table
                     return response, table
                 root1 = ET.fromstring(response.content)
                 data = root1[0].findall(ns + topElement)
                 if data:
                     dict = {child.tag.replace(ns, ''): child.text for child in data[0]}
                     dict['UUID'] = id
-                    print(id,dict)
                     mediaFile = root1.findall(ns + 'mediaFile')
                     if len(mediaFile) > 0:
                         mediaDict = {child.tag.replace(ns, ''): child.text for child in mediaFile[0]}
@@ -1157,3 +1165,23 @@ class odk_aggregate(external_service):
                                 dict[key] = mediaDict['downloadUrl']
                     table.append(dict)
         return response, table
+
+    def downloadMedia(self, URI, downloadDir):
+        response = requests.get(URI, allow_redirects=True, stream=True, proxies=getProxiesConf(),
+                                auth=self.getAuth())
+        if response.status_code == 200:
+            fileName = re.findall('filename="([^"]*)"', response.headers['content-disposition'])[0]
+            #print ("content", fileName,response.headers['content-disposition'], response.status_code)
+            localAttachmentPath = os.path.abspath(os.path.join(downloadDir, fileName))
+            with open(localAttachmentPath, 'wb') as f:
+                for chunk in response:
+                    f.write(chunk)
+            localURI = localAttachmentPath
+            try:
+                if self.relativePathsCheckBox.isChecked():
+                    localURI = os.path.relpath(localURI, QgsProject.instance().readPath("./"))
+            except:
+                pass
+            return localURI
+        else:
+            return "can't download media: " + str(response.reason)

@@ -27,7 +27,7 @@ import time
 import requests
 
 from PyQt4 import QtGui
-from PyQt4.QtGui import QTableWidgetItem, QSizePolicy, QItemDelegate, QComboBox, QLineEdit, QFileDialog
+from PyQt4.QtGui import QTableWidgetItem, QSizePolicy, QItemDelegate, QComboBox, QLineEdit, QFileDialog, QDialogButtonBox
 from PyQt4.QtCore import Qt, QSize, QSettings, QTranslator, qVersion, QCoreApplication, QFileInfo,QVariant
 from QgisODK_mod_dialog_collect import Ui_dataCollectDialog
 
@@ -149,7 +149,8 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
 
     def view(self, surveyName, collectedData):
         self.progressBar.hide()
-        self.buttonBox.setEnabled(True)
+        self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(True)
+        self.buttonBox.button(QDialogButtonBox.Cancel).setEnabled(True)
         if collectedData:
             self.collectedDataDict = collectedData
             self.checkSyncroAction()
@@ -214,7 +215,6 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                 fieldSource = self.fieldTable.item(row,1).text()
                 fieldTarget = self.fieldTable.item(row,2).text()
                 exportFieldMap[fieldSource] = (fieldTarget or fieldSource)
-        print exportFieldMap
         if 'GEOMETRY' in exportFieldMap.values():
             return exportFieldMap
         else:
@@ -238,14 +238,29 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                     return
                 baseDir = os.path.dirname(geoJsonFileName)
 
-            self.progressBar.setRange(0,len(self.collectedDataDict))
+            if not self.syncroCheckBox.isChecked():
+                new_items = len(self.collectedDataDict)
+            else:
+                new_items = 0
+                for feature in self.collectedDataDict:
+                    feature_uuid = None
+                    for key, value in feature.iteritems():
+                        if "UUID" in key.upper():
+                            feature_uuid = value
+                    if not feature_uuid in processingLayer_uuid_list:
+                        new_items += 1
+
+            self.progressBar.setRange(0, new_items)
+            QtGui.qApp.processEvents()
             self.progressBar.show()
-            self.buttonBox.setEnabled(False)
+            self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
+            self.buttonBox.button(QDialogButtonBox.Cancel).setEnabled(False)
             count = 1
             for feature in self.collectedDataDict:
                 cleanedFeat = {}
                 self.progressBar.setValue(count)
-
+                QtGui.qApp.processEvents()
+                #print new_items,count
                 if self.syncroCheckBox.isChecked():
                     feature_uuid = None
                     for key,value in feature.iteritems():
@@ -282,8 +297,9 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                     layer = self.iface.addVectorLayer(os.path.join(workDir,geoJsonFileName), QFileInfo(geoJsonFileName).baseName(), "ogr")
                     QgsMapLayerRegistry.instance().addMapLayer(layer)
                     
-            self.progressBar.setValue(count)
-            self.buttonBox.setEnabled(True)
+            self.progressBar.setValue(new_items)
+            QtGui.qApp.processEvents()
+            self.buttonBox.button(QDialogButtonBox.Cancel).setEnabled(True)
                     
 
 
