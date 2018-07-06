@@ -1028,7 +1028,6 @@ https://docs.google.com/spreadsheets/d/%s/edit
             os.makedirs(downloadDir)
         headers = {'Authorization': 'Bearer {}'.format(self.authorization['access_token'])}
         response = requests.get(URL, allow_redirects=True, proxies=getProxiesConf(), headers=headers)
-        print (response.headers, response.text)
         if response.status_code == 200:
             d = response.headers['content-disposition']
             fileName = re.findall("filename=(.+)", d)[0].replace('"','')
@@ -1131,7 +1130,6 @@ class odk_aggregate(external_service):
         topElement = ''
         for sub_elem in root.iter():
             if sub_elem.get('id'):
-                print sub_elem.tag, sub_elem.get('id')
                 if sub_elem.get('id') == XFormKey:
                     topElement = re.sub("[\{].*?[\}]", "",sub_elem.tag)
         #print "topElement", topElement
