@@ -31,31 +31,30 @@ import json
 import time
 import re
 import base64
-import StringIO
 import csv
+from io import StringIO
 
 import xml.etree.ElementTree as ET
 
-from PyQt4 import QtGui
-from PyQt4.QtGui import QTableWidget, QWidget, QTableWidgetItem, QSizePolicy, QMessageBox
-from PyQt4.QtCore import Qt, QSettings, QSize, QSettings, QTranslator, qVersion, QCoreApplication, QTimer, QUrl
-from qgis.core import QgsProject, QgsMapLayerRegistry, QgsNetworkAccessManager
+from PyQt5 import QtWidgets, QtGui, uic
+from PyQt5.QtWidgets import QTableWidget, QWidget, QTableWidgetItem, QSizePolicy, QMessageBox
+from PyQt5.QtCore import Qt, QSettings, QSize, QSettings, QTranslator, qVersion, QCoreApplication, QTimer, QUrl
+from qgis.core import QgsProject, QgsNetworkAccessManager, Qgis
 from qgis.gui import QgsMessageBar
 from email.mime.text import MIMEText
 
 
-from QgisODK_mod_collect import QgisODKimportDataFromService, getProxiesConf
-from QgisODK_mod_dialog_base import Ui_QgisODKDialogBase
-from QgisODK_mod_dialog_services import Ui_ServicesDialog
-from QgisODK_mod_dialog_import import Ui_ImportDialog
-from QgisODK_mod_dialog_choices import Ui_ChoicesDialog
-from QgisODK_mod_dialog_browser import Ui_InternalBrowser
+from .QgisODK_mod_collect import QgisODKimportDataFromService, getProxiesConf
 
-from fields_tree import slugify
+from .fields_tree import slugify, ODK_fields
 from dateutil.parser import parse
 
+Ui_QgisODKDialogBase, _ = uic.loadUiType(os.path.join(os.path.dirname(__file__), 'QgisODK_mod_dialog_base.ui'))
+Ui_InternalBrowser, _ = uic.loadUiType(os.path.join(os.path.dirname(__file__), 'QgisODK_mod_dialog_browser.ui'))
+Ui_ImportDialog, _ = uic.loadUiType(os.path.join(os.path.dirname(__file__), 'QgisODK_mod_dialog_import.ui'))
+Ui_ServicesDialog, _ = uic.loadUiType(os.path.join(os.path.dirname(__file__), 'QgisODK_mod_dialog_services.ui'))
 
-class QgisODKDialog(QtGui.QDialog, Ui_QgisODKDialogBase):
+class QgisODKDialog(QtWidgets.QDialog, Ui_QgisODKDialogBase):
     def __init__(self, parentClass, parent=None):
         """Constructor."""
         super(QgisODKDialog, self).__init__(parent)
@@ -65,6 +64,10 @@ class QgisODKDialog(QtGui.QDialog, Ui_QgisODKDialogBase):
         # http://qt-project.org/doc/qt-4.8/designer-using-a-ui-file.html
         # #widgets-and-dialogs-with-auto-connect
         self.setupUi(self)
+        #self.treeView = ODK_fields(self)
+        #treeViewLayout = self.findChild(QtWidgets.QVBoxLayout, 'treeViewLayout')
+        #treeViewLayout.addChildWidget(self.treeView)
+        self.treeView.setObjectName("treeView")
         self.treeView.setIface(parentClass.iface)
         settingsIcon = QtGui.QIcon()
         settingsIcon.addPixmap(QtGui.QPixmap(os.path.join(os.path.dirname(__file__),"settings.svg")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
@@ -77,7 +80,7 @@ class QgisODKDialog(QtGui.QDialog, Ui_QgisODKDialogBase):
         self.ODKloadButton.setIcon(loadIcon)
 
 
-class internalBrowser(QtGui.QDialog, Ui_InternalBrowser):
+class internalBrowser(QtWidgets.QDialog, Ui_InternalBrowser):
 
     def __init__(self, target, parent = None):
         super(internalBrowser, self).__init__(parent)
@@ -119,13 +122,13 @@ class internalBrowser(QtGui.QDialog, Ui_InternalBrowser):
         dialog.patchLoginHint(loginHint)
         result = dialog.exec_()
         dialog.timer.stop()
-        if result == QtGui.QDialog.Accepted:
+        if result == QtWidgets.QDialog.Accepted:
             return dialog.auth_code
         else:
             return None
 
 
-class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
+class QgisODKImportCollectedData(QtWidgets.QDialog, Ui_ImportDialog):
 
     def __init__(self,module, parent = None): #(self, module, parent = None):
         """Constructor."""
@@ -161,7 +164,7 @@ class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
             self.availableDataList.clear()
             self.availableDataList.addItems(availableData)
         else:
-            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("Can't download available data %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("Can't download available data %s, %s.") % (response.status_code,response.reason), level=Qgis.Critical, duration=6)
         self.show()
         self.raise_()
 
@@ -176,13 +179,13 @@ class QgisODKImportCollectedData(QtGui.QDialog, Ui_ImportDialog):
         dialog = QgisODKImportCollectedData(module)
         dialog.view()
         result = dialog.exec_()
-        if result == QtGui.QDialog.Accepted:
+        if result == QtWidgets.QDialog.Accepted:
             return dialog.getRemoteTable()
         else:
             return None
 
 
-class QgisODKServices(QtGui.QDialog, Ui_ServicesDialog):
+class QgisODKServices(QtWidgets.QDialog, Ui_ServicesDialog):
 
     services = [
         'ona', 'google_drive', 'odk_aggregate'
@@ -266,7 +269,7 @@ class QgisODKServices(QtGui.QDialog, Ui_ServicesDialog):
         return settings
 
     def importSettings(self,settings):
-        for service, params in settings.iteritems():
+        for service, params in settings.items():
             for i in range(0, self.tabServices.count()):
                 if self.tabServices.tabText(i) == service:
                     service_settings = self.tabServices.widget(i).children()[0]
@@ -401,7 +404,7 @@ class external_service(QTableWidget):
                 }
 
             # build geojson properties
-            for fieldKey, fieldValue in record.iteritems():
+            for fieldKey, fieldValue in record.items():
                 if not fieldKey in ('GEOMETRY',):  # field exclusion
                     feature["properties"][fieldKey] = fieldValue
 
@@ -502,12 +505,12 @@ class ona(external_service):
         if XFormID:
             XFormKey, response = self.formIDToPk(XFormID)
             response, remoteTable = self.getTable(XFormKey)
-            #print "remoteTable",remoteTable
+            print ("remoteTable",remoteTable)
             self.importDataFromService.view(XFormID, remoteTable)
         else:
             self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
                                                 self.tr("no data collect table selected"),
-                                                level=QgsMessageBar.CRITICAL, duration=6)
+                                                level=Qgis.Critical, duration=6)
 
     def getTable(self,form_key):
         #step1 - verify if form exists:
@@ -516,10 +519,33 @@ class ona(external_service):
         #    self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("error loading csv table %s, %s.") % (
         #    response.status_code, response.reason), level=QgsMessageBar.CRITICAL, duration=6)
         #    return response, None
+
+        if form_key:
+            url = 'https://api.ona.io/api/v1/data/%s' % form_key
+            response = requests.get(url, auth=self.getAuth(), proxies = getProxiesConf())
+            if response.status_code == 200:
+                collectData = self.getLayerFromTable(response.json(),excludeGeometryField=False)
+                propList = []
+                for feature in collectData["features"]:
+                    propList.append(feature["properties"])
+                return response, propList
+
+            else:
+                self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("error loading data table %s, %s.") % (
+                response.status_code, response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+                return response, None
+
+    def csv_getTable(self,form_key):
+        #step1 - verify if form exists:
+        #form_key, response = self.formIDToPk(xForm_id)
+        #if response.status_code != requests.codes.ok:
+        #    self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"), self.tr("error loading csv table %s, %s.") % (
+        #    response.status_code, response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+        #    return response, None
         def UnicodeDictReader(utf8_data, **kwargs):
-            csv_reader = csv.DictReader(utf_8_encoder(utf8_data), **kwargs)
+            csv_reader = csv.DictReader(utf8_data, **kwargs)#utf_8_encoder(utf8_data)
             for row in csv_reader:
-                yield {unicode(key, 'utf-8'):unicode(value, 'utf-8') for key, value in row.iteritems()}
+                yield {key:value for key, value in row.items()}
                 
         def utf_8_encoder(unicode_csv_data):
             for line in unicode_csv_data:
@@ -529,12 +555,15 @@ class ona(external_service):
             url = 'https://api.ona.io/api/v1/data/%s.csv' % form_key
             response = requests.get(url, auth=self.getAuth(), proxies = getProxiesConf())
             if response.status_code == 200:
-                csvIO = StringIO.StringIO(response.text)
+                csvIO = StringIO(response.text)
                 csvIn = UnicodeDictReader(csvIO, delimiter=',', quotechar='"')
                 csvList = []
                 for row in csvIn:
                     remappedRow = {}
-                    for key,value in row.iteritems():
+                    for key,value in row.items():
+                        #print (key,value)
+                        #if value[-4:].lower() in ('.png','.jpg','jpeg'):
+                        #    img_url = 'https://api.ona.io/api/v1/files/%s?filename=%s/attachments/%s'
                         if '/' in key:
                             cleanedKey = key.split('/')[-1]
                             remappedRow[cleanedKey] = value
@@ -549,7 +578,7 @@ class ona(external_service):
                 response.status_code, response.reason), level=QgsMessageBar.CRITICAL, duration=6)
                 return response, None
 
-    def getLayerFromTable(self,remoteData, downloadAttachements = None):
+    def getLayerFromTable(self,remoteData, downloadAttachements = None, excludeGeometryField=True):
         #remoteResponse = self.getJSON(xForm_id)
         #response, remoteData = self.getTable(xForm_id)
         geojson = {
@@ -585,41 +614,44 @@ class ona(external_service):
                      "properties": {},
                      "geometry": None
                 }
-                
+            print (record)
             #recode attachments:
-            attachements = {}
+            attachments = {}
             if '_attachments' in record:
                 for attachment in record['_attachments']:
                     fileKey = attachment["download_url"].split('/')[-1]
                     #todo local download attachment files if option is checked
-                    attachements[fileKey] = 'https://api.ona.io' + attachment["download_url"]
+                    attachments[fileKey] = 'https://api.ona.io' + attachment["download_url"]
                     if downloadAttachements and QgsProject.instance().readPath("./") != "./":
                         downloadDir = os.path.join(QgsProject.instance().readPath("./"),'attachments_%s_%s' % (self.getValue("name"),self.getValue("project_id")))
                         if not os.path.exists(downloadDir):
                             os.makedirs(downloadDir)
-                        response = requests.get(attachements[fileKey], stream=True, proxies = getProxiesConf())
+                        response = requests.get(attachments[fileKey], stream=True, proxies = getProxiesConf())
                         localAttachmentPath = os.path.abspath(os.path.join(downloadDir,fileKey))
                         if response.status_code == 200:
                             with open(localAttachmentPath, 'wb') as f:
                                 for chunk in response:
                                     f.write(chunk)
-                                attachements[fileKey] = localAttachmentPath
+                                attachments[fileKey] = localAttachmentPath
                         else:
-                            attachements[fileKey] = ''
-            
+                            attachments[fileKey] = ''
+            #print ("_attachments",attachments)
             #build geojson properties
-            for fieldKey, fieldValue in record.iteritems():
-                if not fieldKey in ('GEOMETRY','_attachments','_tags','_notes','_bamboo_dataset_id','_geolocation'): # field exclusion to verify
-                    
-                        
-                    if fieldValue in attachements.keys():
-                        fieldValue = attachements[fieldValue]
+            exclusions = ['_attachments','_tags','_notes','_bamboo_dataset_id','_geolocation']
+            if excludeGeometryField:
+                exclusions.append('GEOMETRY')
+            for fieldKey, fieldValue in record.items():
+                if not fieldKey in exclusions: # field exclusion to verify
+                    if fieldValue in attachments.keys():
+                        fieldValue = attachments[fieldValue]
                         
                     if "/" in fieldKey: #check if grouped Field
                         cleanedKey = fieldKey.split("/")[-1]
                     else:
                         cleanedKey = fieldKey
                     fieldRemap = self.module.dlg.treeView.mapNameTofield(cleanedKey) #try to remap field name to existing field using map to property
+                    if not fieldRemap:
+                        fieldRemap = cleanedKey
                     feature["properties"][fieldRemap] = fieldValue
                     
             geojson["features"].append(feature)
@@ -627,6 +659,8 @@ class ona(external_service):
         return geojson
 
     def downloadMedia(self, URI, downloadDir):
+        if URI[:4] != 'http':
+            return "image unavailable"
         fileName = URI.split('/')[-1]
         #downloadDir = os.path.join(QgsProject.instance().readPath("./"),'attachments_%s' % layerName)
         if not os.path.exists(downloadDir):
@@ -639,7 +673,7 @@ class ona(external_service):
                     f.write(chunk)
                 return localAttachmentPath
         else:
-            print 'error downloading remote file: ',str(response.reason)
+            print ('error downloading remote file: ',str(response.reason))
             return 'error downloading remote file: ',str(response.reason)
 
 
@@ -673,7 +707,7 @@ class google_drive(external_service):
         else:
             self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
                                                 self.tr("no data collect table selected"),
-                                                level=QgsMessageBar.CRITICAL, duration=6)
+                                                level=Qgis.Critical, duration=6)
             return
 
         if remoteTableID != '':
@@ -683,7 +717,7 @@ class google_drive(external_service):
         else:
             self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
                                                 self.tr("undefined data collect table ID"),
-                                                level=QgsMessageBar.CRITICAL, duration=6)
+                                                level=Qgis.Critical, duration=6)
 
     def getCollectors(self):
         collectorsFromParams = self.getValue("data collectors emails").split(' ')
@@ -868,7 +902,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
         if self.getValue("data collection table ID") == '':
             self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
                                                 self.tr("undefined data collect table ID"),
-                                                level=QgsMessageBar.CRITICAL, duration=6)
+                                                level=Qgis.Critical, duration=6)
             return
 
         if not self.authorization:
@@ -890,7 +924,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             with open(os.path.join(workDir, geoJsonFileName), "w") as geojson_file:
                 geojson_file.write(json.dumps(geojson))
             layer = self.iface.addVectorLayer(os.path.join(workDir, layerName), layerName[:-8], "ogr")
-            QgsMapLayerRegistry.instance().addMapLayer(layer)
+            QgsProject.instance().addMapLayer(layer)
         else:
             self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("error loading csv table"))
 
@@ -901,8 +935,16 @@ https://docs.google.com/spreadsheets/d/%s/edit
             "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:OGC:1.3:CRS84" } },
             "features": []
         }
-        #print remoteData
+
         for record in remoteData:
+
+            '''
+            #clean keys
+            record={}
+            for key,value in raw_record.items():
+                record[key.split('-')[-1]] = value
+            '''
+
             if 'GEOMETRY' in record:
                 geomType, geomCoordinates = self.guessGeomType(record['GEOMETRY'])
                 feature = {
@@ -931,7 +973,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
                 }
 
             # build geojson properties
-            for fieldKey, fieldValue in record.iteritems():
+            for fieldKey, fieldValue in record.items():
                 if not fieldKey in ('GEOMETRY',):  # field exclusion
                     feature["properties"][fieldKey] = fieldValue
 
@@ -949,17 +991,18 @@ https://docs.google.com/spreadsheets/d/%s/edit
                    'Content-Type': 'application/json'}
         response = requests.get(url, headers=headers, proxies = getProxiesConf(), verify=False)
         if response.status_code == 200:
-            csvIO = StringIO.StringIO(response.text)
+            csvIO = StringIO(response.text)
             csvIn = csv.DictReader(csvIO, delimiter=',', quotechar='"')
             csvList = []
             for row in csvIn:
                 csvList.append(row)
             geometryField = ''
             for field in csvList[0].keys():
-                if 'GEOMETRY' in field.upper():
+                if field.split('-')[-1] == 'GEOMETRY':
                     geometryField = field
                     prefix = field[:-8]
                     len_prefix = len(field)-8
+            print ("geometry field:",geometryField,prefix,len_prefix)
             newCsvList = []
             for row in csvList:
                 newRow = {}
@@ -1028,7 +1071,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
             os.makedirs(downloadDir)
         headers = {'Authorization': 'Bearer {}'.format(self.authorization['access_token'])}
         response = requests.get(URL, allow_redirects=True, proxies=getProxiesConf(), headers=headers)
-        print (response.headers, response.text)
+        #print (response.headers, response.text)
         if response.status_code == 200:
             d = response.headers['content-disposition']
             fileName = re.findall("filename=(.+)", d)[0].replace('"','')
@@ -1038,7 +1081,7 @@ https://docs.google.com/spreadsheets/d/%s/edit
                     f.write(chunk)
                 return localAttachmentPath
         else:
-            print 'error downloading remote file: ',str(response.reason)
+            print ('error downloading remote file: ',str(response.reason))
             return 'error downloading remote file: ',str(response.reason)
 
 class odk_aggregate(external_service):
@@ -1097,15 +1140,15 @@ class odk_aggregate(external_service):
         if response.status_code == 201:
             self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"),
                                                 self.tr('Layer is online(' + message + '), Collect data from App'),
-                                                level=QgsMessageBar.SUCCESS, duration=6)
+                                                level=Qgis.Success, duration=6)
         elif response.status_code == 409:
             self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"),
                                                 self.tr("Form exist and can not be updated"),
-                                                level=QgsMessageBar.CRITICAL, duration=6)
+                                                level=Qgis.Critical, duration=6)
         else:
             self.iface.messageBar().pushMessage(self.tr("QgisODK plugin"),
                                                 self.tr("Form is not sent "),
-                                                level=QgsMessageBar.CRITICAL, duration=6)
+                                                level=Qgis.Critical, duration=6)
         return response
 
     def collectData(self):
@@ -1115,11 +1158,12 @@ class odk_aggregate(external_service):
         XFormID = QgisODKImportCollectedData.getXFormID(self)
         if XFormID:
             response, remoteTable = self.getTable(XFormID)
+            print ("REMOTE TABEL",remoteTable)
             self.importDataFromService.view(XFormID, remoteTable)
         else:
             self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"),
                                                 self.tr("no data collect table selected"),
-                                                level=QgsMessageBar.CRITICAL, duration=6)
+                                                level=Qgis.Critical, duration=6)
 
 
     def getTable(self, XFormKey):
@@ -1131,7 +1175,6 @@ class odk_aggregate(external_service):
         topElement = ''
         for sub_elem in root.iter():
             if sub_elem.get('id'):
-                print sub_elem.tag, sub_elem.get('id')
                 if sub_elem.get('id') == XFormKey:
                     topElement = re.sub("[\{].*?[\}]", "",sub_elem.tag)
         #print "topElement", topElement
@@ -1160,7 +1203,7 @@ class odk_aggregate(external_service):
                     mediaFile = root1.findall(ns + 'mediaFile')
                     if len(mediaFile) > 0:
                         mediaDict = {child.tag.replace(ns, ''): child.text for child in mediaFile[0]}
-                        for key, value in dict.iteritems():
+                        for key, value in dict.items():
                             if value == mediaDict['filename']:
                                 dict[key] = mediaDict['downloadUrl']
                     table.append(dict)
@@ -1185,3 +1228,4 @@ class odk_aggregate(external_service):
             return localURI
         else:
             return "can't download media: " + str(response.reason)
+

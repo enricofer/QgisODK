@@ -26,16 +26,17 @@ import json
 import time
 import requests
 
-from PyQt4 import QtGui
-from PyQt4.QtGui import QTableWidgetItem, QSizePolicy, QItemDelegate, QComboBox, QLineEdit, QFileDialog, QDialogButtonBox
-from PyQt4.QtCore import Qt, QSize, QSettings, QTranslator, qVersion, QCoreApplication, QFileInfo,QVariant
-from QgisODK_mod_dialog_collect import Ui_dataCollectDialog
+from PyQt5 import QtWidgets, QtGui, uic
+from PyQt5.QtWidgets import QTableWidgetItem, QSizePolicy, QItemDelegate, QComboBox, QLineEdit, QFileDialog, QDialogButtonBox, QApplication
+from PyQt5.QtCore import Qt, QSize, QSettings, QTranslator, qVersion, QCoreApplication, QFileInfo,QVariant
 
-from qgis.core import QgsMapLayer, QgsMapLayerRegistry, QgsProject, QgsFeature, QgsField, QgsGeometry, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsPoint
+from qgis.core import QgsMapLayer, QgsProject, QgsFeature, QgsField, QgsGeometry, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsPointXY, Qgis
 from qgis.gui import QgsMessageBar
 
-from fields_tree import slugify
-    
+from .fields_tree import slugify
+
+Ui_dataCollectDialog, _ = uic.loadUiType(os.path.join(os.path.dirname(__file__), 'QgisODK_mod_dialog_collect.ui'))
+
 def getProxiesConf():
     s = QSettings() #getting proxy from qgis options settings
     proxyEnabled = s.value("proxy/proxyEnabled", "")
@@ -53,7 +54,7 @@ def getProxiesConf():
     else:
         return None
 
-class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
+class QgisODKimportDataFromService(QtWidgets.QDialog, Ui_dataCollectDialog):
 
     def __init__(self, service, parent = None):
         """Constructor."""
@@ -110,11 +111,11 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
             except:
                 pass
             self.layerComboBox.clear()
-            for layer in self.iface.legendInterface().layers():
+            for layerName,layer in QgsProject.instance().mapLayers().items():
                 if layer.type() == QgsMapLayer.VectorLayer:
                     self.layerComboBox.addItem(layer.name(),layer.id())
-            if self.iface.legendInterface().currentLayer():
-                current_idx = self.layerComboBox.findData(self.iface.legendInterface().currentLayer().id())
+            if self.iface.activeLayer():
+                current_idx = self.layerComboBox.findData(self.iface.activeLayer().id())
                 if current_idx != -1:
                     self.layerComboBox.setCurrentIndex(current_idx)
             self.layerComboBox.currentIndexChanged.connect(self.layerComboBoxChanged)
@@ -139,13 +140,13 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
         currentLayer = self.getCurrentLayer()
         currentLayerFields = {}
         if currentLayer:
-            for field in currentLayer.pendingFields():
+            for field in currentLayer.fields():
                 currentLayerFields[slugify(field.name())]=field.name() #dict with key slugified to simplify name match
             self.fieldMapping = currentLayerFields
         self.populateFieldTable()
 
     def getCurrentLayer(self):
-        return QgsMapLayerRegistry.instance().mapLayer(self.layerComboBox.itemData(self.layerComboBox.currentIndex(),Qt.UserRole))
+        return QgsProject.instance().mapLayer(self.layerComboBox.itemData(self.layerComboBox.currentIndex(),Qt.UserRole))
 
     def view(self, surveyName, collectedData):
         self.progressBar.hide()
@@ -179,8 +180,8 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                 # try to guess field mapping
                 QGISfieldItem.setText("")
                 enabledItem.setCheckState(Qt.Unchecked)
-                for fieldOrigin, FieldDest in self.fieldMapping.iteritems():
-                    if fieldOrigin in slugify(field):
+                for fieldOrigin, FieldDest in self.fieldMapping.items():
+                    if fieldOrigin == slugify(field): #WAS if fieldOrigin in slugify(field)
                         QGISfieldItem.setText(FieldDest)
                         enabledItem.setCheckState(Qt.Checked)
                         break
@@ -196,17 +197,19 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
 
                 self.fieldTable.setItem(row,2,QGISfieldItem)
                 for predef in predefinedFields:
-                    if predef in field.upper(): #prevent predefined fields user editing
-                        if predef == 'UUID':
+                    if predef in field.upper(): #prevent predefined fields user editing WAS predef in field.upper()
+                        predef_target = ''
+                        if 'UUID' in field.upper():
+                            predef_target ='ODKUUID'
+                        elif field.upper() == 'GEOMETRY':
+                            predef_target ='GEOMETRY'
+                        if predef_target:
                             ODKfieldItem.setText(field)
-                            QGISfieldItem.setText('ODKUUID')
-                        elif predef == 'EOMETRY':
-                            ODKfieldItem.setText('GEOMETRY')
-                            QGISfieldItem.setText('GEOMETRY')
-                        enabledItem.setCheckState(Qt.Checked)
-                        enabledItem.setFlags(enabledItem.flags() & Qt.ItemIsEditable)
-                        ODKfieldItem.setFlags(ODKfieldItem.flags() & Qt.ItemIsEditable)
-                        QGISfieldItem.setFlags(QGISfieldItem.flags() & Qt.ItemIsEditable)
+                            QGISfieldItem.setText(predef_target)
+                            enabledItem.setCheckState(Qt.Checked)
+                            enabledItem.setFlags(enabledItem.flags() & Qt.ItemIsEditable)
+                            ODKfieldItem.setFlags(ODKfieldItem.flags() & Qt.ItemIsEditable)
+                            QGISfieldItem.setFlags(QGISfieldItem.flags() & Qt.ItemIsEditable)
 
     def getExportFieldMap(self):
         exportFieldMap = {}
@@ -224,7 +227,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
         if self.collectedDataDict:
             exportMap = self.getExportFieldMap()
             if not exportMap:
-                self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("No 'GEOMETRY' field in field mapping, can't import ODK layer") , level=QgsMessageBar.WARNING, duration=6)
+                self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("No 'GEOMETRY' field in field mapping, can't import ODK layer") , level=Qgis.Warning, duration=6)
                 return
             cleanedDataDict = []
             if self.syncroCheckBox.isChecked():
@@ -233,7 +236,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                 baseDir = os.path.abspath(QgsProject.instance().readPath("./"))
             else:
                 workDir = QgsProject.instance().readPath("./")
-                geoJsonFileName = QFileDialog().getSaveFileName(None, self.tr("Save as GeoJson"), workDir, "*.geojson")
+                geoJsonFileName,ext = QFileDialog().getSaveFileName(None, self.tr("Save as GeoJson"), workDir, "*.geojson")
                 if not geoJsonFileName:
                     return
                 baseDir = os.path.dirname(geoJsonFileName)
@@ -244,14 +247,15 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                 new_items = 0
                 for feature in self.collectedDataDict:
                     feature_uuid = None
-                    for key, value in feature.iteritems():
+                    for key, value in feature.items():
                         if "UUID" in key.upper():
                             feature_uuid = value
                     if not feature_uuid in processingLayer_uuid_list:
                         new_items += 1
 
+
             self.progressBar.setRange(0, new_items)
-            QtGui.qApp.processEvents()
+            QApplication.processEvents()
             self.progressBar.show()
             self.buttonBox.button(QDialogButtonBox.Ok).setEnabled(False)
             self.buttonBox.button(QDialogButtonBox.Cancel).setEnabled(False)
@@ -259,11 +263,11 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
             for feature in self.collectedDataDict:
                 cleanedFeat = {}
                 self.progressBar.setValue(count)
-                QtGui.qApp.processEvents()
+                QApplication.processEvents()
                 #print new_items,count
                 if self.syncroCheckBox.isChecked():
                     feature_uuid = None
-                    for key,value in feature.iteritems():
+                    for key,value in feature.items():
                         if "UUID" in key.upper():
                             #print "OK"
                             feature_uuid = value
@@ -271,7 +275,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                         #print "exclude feature ", feature_uuid
                         continue
                  
-                for key,value in feature.iteritems():
+                for key,value in feature.items():
                     if key == "GEOMETRY":
                         if "," in value: #geometry comes from google drive
                             value = value.replace(" ",";").replace(",", " ") # fixed comma/space/semicolon mismatch between odk aggregate and google drive
@@ -295,18 +299,17 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                     with open(os.path.join(workDir,geoJsonFileName), "w") as geojson_file:
                         geojson_file.write(json.dumps(geojsonDict))
                     layer = self.iface.addVectorLayer(os.path.join(workDir,geoJsonFileName), QFileInfo(geoJsonFileName).baseName(), "ogr")
-                    QgsMapLayerRegistry.instance().addMapLayer(layer)
+                    QgsProject.instance().addMapLayer(layer)
                     
             self.progressBar.setValue(new_items)
-            QtGui.qApp.processEvents()
+            QApplication.processEvents()
             self.buttonBox.button(QDialogButtonBox.Cancel).setEnabled(True)
                     
 
 
     def cleanURI(self,URI,download_base_dir,widget = None):
         attachements = {}
-        #print URI,download_base_dir,widget
-        if isinstance(URI, basestring) and self.downloadCheckBox.isChecked() and (URI[0:7] == 'http://' or URI[0:8] == 'https://'):
+        if isinstance(URI, str) and self.downloadCheckBox.isChecked() and (URI[0:7] in ('http://','https:/') or URI[-4:].lower() in ('.png','.jpg','jpeg') ): #
             if self.processingLayer:
                 layerName = self.processingLayer.name()
             else:
@@ -328,7 +331,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
         uuidList = []
         if lyr:
             uuidFieldName = None
-            for field in lyr.pendingFields():
+            for field in lyr.fields():
                 if 'UUID' in field.name().upper():
                     uuidFieldName = field.name()
             if uuidFieldName:
@@ -341,7 +344,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
         self.processingLayer = layer
 
         uuid_found = None
-        for field in layer.pendingFields():
+        for field in layer.fields():
             if field.name() == 'ODKUUID':
                 uuid_found = True
 
@@ -351,7 +354,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
             layer.dataProvider().addAttributes([uuidField])
             layer.updateFields()
 
-        QgisFieldsList = [field.name() for field in layer.pendingFields()]
+        QgisFieldsList = [field.name() for field in layer.fields()]
         #layer.beginEditCommand("ODK syncronize")
         layer.startEditing()
         
@@ -366,7 +369,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                 qgisGeom = QgsGeometry.fromWkt(wktGeom)
                 qgisFeature.setGeometry(qgisGeom)
                 qgisFeature.initAttributes(len(QgisFieldsList))
-                for fieldName, fieldValue in odkFeature.iteritems():
+                for fieldName, fieldValue in odkFeature.items():
                     if fieldName != 'GEOMETRY':
                         try:
                             qgisFeature.setAttribute(QgisFieldsList.index(fieldName),fieldValue)
@@ -376,7 +379,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
                 newQgisFeatures.append(qgisFeature)
                 
         if fieldError:
-            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("Can't find '%s' field") % fieldError, level=QgsMessageBar.WARNING, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("Can't find '%s' field") % fieldError, level=Qgis.Warning, duration=6)
         
         layer.addFeatures(newQgisFeatures)
         self.processingLayer = None
@@ -393,12 +396,12 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
             coordinatesList.append([decodeCoord[0],decodeCoord[1]])
         if len(coordinates) == 1:
             
-            reprojectedPoint = self.transformToLayerSRS(QgsPoint(float(coordinatesList[0][1]),float(coordinatesList[0][0])))
+            reprojectedPoint = self.transformToLayerSRS(QgsPointXY(float(coordinatesList[0][1]),float(coordinatesList[0][0])))
             return "POINT(%s %s)" % (reprojectedPoint.x(), reprojectedPoint.y()) #geopoint
         else:
             coordinateString = ""
             for coordinate in coordinatesList:
-                reprojectedPoint = self.transformToLayerSRS(QgsPoint(float(coordinate[1]), float(coordinate[0])))
+                reprojectedPoint = self.transformToLayerSRS(QgsPointXY(float(coordinate[1]), float(coordinate[0])))
                 coordinateString += "%s %s," % (reprojectedPoint.x(), reprojectedPoint.y())
             coordinateString = coordinateString[:-1]
         if coordinates[-1] == '' and coordinatesList[0][0] == coordinatesList[-2][0] and coordinatesList[0][1] == coordinatesList[-2][1]:
@@ -413,7 +416,7 @@ class QgisODKimportDataFromService(QtGui.QDialog, Ui_dataCollectDialog):
         # transformation from the current SRS to WGS84
         crsDest = self.processingLayer.crs () # get layer crs
         crsSrc = QgsCoordinateReferenceSystem(4326)  # WGS 84
-        xform = QgsCoordinateTransform(crsSrc, crsDest)
+        xform = QgsCoordinateTransform(crsSrc, crsDest, QgsProject.instance())
         return xform.transform(pPoint) # forward transformation: src -> dest
 
 

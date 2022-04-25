@@ -20,24 +20,25 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, QFileInfo
-from PyQt4.QtGui import QMenu, QAction, QIcon, QFileDialog
-from PyQt4.QtXml import QDomDocument, QDomElement
-from qgis.core import QgsMapLayer, QgsMapLayerRegistry, QgsProject, QgsExpressionContextUtils
+from PyQt5.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, QFileInfo
+from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QMenu, QAction, QFileDialog
+from PyQt5.QtXml import QDomDocument, QDomElement
+from qgis.core import QgsMapLayer, QgsProject, QgsExpressionContextUtils, QgsReadWriteContext, Qgis
 from qgis.gui import QgsMessageBar
 
 # Initialize Qt resources from file resources.py
-import resources
+#import resources
 import json
-import xlsxwriter
 import requests
 import io
 import time
 
 # Import the code for the dialog
-from QgisODK_mod_dialog import QgisODKDialog, QgisODKServices, internalBrowser
+from .QgisODK_mod_dialog import QgisODKDialog, QgisODKServices, internalBrowser
 import os.path
 from pyxform.builder import create_survey_element_from_dict
+from xlsxwriter import Workbook
 from json_form_schema import json_test, dict_test
 
 
@@ -189,7 +190,6 @@ class QgisODK:
         #self.QODKInAction = QAction(QIcon(os.path.join(self.plugin_dir,"icon.svg")), u"ODK in", self.QODKMenu )
         #self.QODKMenu.addAction(self.QODKOutAction)
         #self.QODKMenu.addAction(self.QODKInAction)
-        self.iface.legendInterface().addLegendLayerAction(self.QODKOutAction,"","01", QgsMapLayer.VectorLayer,True)
         self.QODKOutAction.triggered.connect(self.contextOdkout)
         #self.QODKInAction.triggered.connect(self.ODKin)
         self.dlg.addGroupButton.clicked.connect(self.addODKGroup)
@@ -215,7 +215,6 @@ class QgisODK:
             self.iface.removeToolBarIcon(action)
         # remove the toolbar
         del self.toolbar
-        self.iface.legendInterface().removeLegendLayerAction(self.QODKOutAction)
 
     def openSettings(self):
         self.settingsDlg.show()
@@ -274,7 +273,7 @@ class QgisODK:
     def run(self):
         self.populateVectorLayerCombo()
         self.ODKout(None)
-        ps = QgsExpressionContextUtils.projectScope()
+        ps = QgsExpressionContextUtils.projectScope(QgsProject.instance())
         if ps.hasVariable('QgisODK_current_project'):
             #print 'LOADING ',ps.variable('QgisODK_current_project')
             self.ODKLoadLayerStateAction(fileName=ps.variable('QgisODK_current_project'))
@@ -295,8 +294,8 @@ class QgisODK:
 
     def ODKout(self, currentLayer):
         if not currentLayer:
-            if self.iface.legendInterface().currentLayer():
-                currentLayer = self.iface.legendInterface().currentLayer()
+            if self.iface.activeLayer():
+                currentLayer = self.iface.activeLayer()
                 self.dlg.setWindowTitle("QGISODK - " + currentLayer.name())
             else:
                 return
@@ -305,29 +304,29 @@ class QgisODK:
         currentFormConfig = currentLayer.editFormConfig()
         XMLDocument = QDomDocument("QGISFormConfig")
         XMLFormDef = XMLDocument.createElement("FORM")
-        currentFormConfig.writeXml(XMLFormDef)
+        currentFormConfig.writeXml(XMLFormDef, QgsReadWriteContext ())
         XMLDocument.appendChild(XMLFormDef)
         fieldsModel = []
-        for i in range(0,len(currentLayer.pendingFields())):
+        for i in range(0,len(currentLayer.fields())):
             fieldDef = {}
-            fieldDef['fieldName'] = currentLayer.pendingFields()[i].name()
-            fieldDef['fieldMap'] = currentLayer.pendingFields()[i].name()
-            fieldDef['fieldLabel'] = currentLayer.pendingFields()[i].comment()
+            fieldDef['fieldName'] = currentLayer.fields()[i].name()
+            fieldDef['fieldMap'] = currentLayer.fields()[i].name()
+            fieldDef['fieldLabel'] = currentLayer.fields()[i].comment()
             fieldDef['fieldHint'] = ''
-            fieldDef['fieldType'] = currentLayer.pendingFields()[i].type()
+            fieldDef['fieldType'] = currentLayer.fields()[i].type()
             fieldDef['fieldEnabled'] = True
             fieldDef['fieldRequired'] = None
             fieldDef['fieldDefault'] = ''
-            fieldDef['fieldWidget'] = currentFormConfig.widgetType(i)
+            fieldDef['fieldWidget'] = currentFormConfig.tabs()[i].type()
             if fieldDef['fieldWidget'] == 'Hidden':
                 fieldDef['fieldEnabled'] = None
             else:
                 fieldDef['fieldEnabled'] = True
             if fieldDef['fieldWidget'] in ('ValueMap','ValueRelation','CheckBox','Photo','FileName'):
                 if fieldDef['fieldWidget'] =='ValueMap':
-                    config = {v: k for k, v in currentFormConfig.widgetConfig(i).iteritems()}
+                    config = {v: k for k, v in currentFormConfig.widgetConfig(i).items()}
                 elif fieldDef['fieldWidget'] == 'ValueRelation':
-                    relation_layer = QgsMapLayerRegistry.instance().mapLayer(currentFormConfig.widgetConfig(i)['Layer'])
+                    relation_layer = QgsProject.instance().mapLayer(currentFormConfig.widgetConfig(i)['Layer'])
                     config = {}
                     for feature in relation_layer.getFeatures():
                         if feature[currentFormConfig.widgetConfig(i)['Key']]:
@@ -352,7 +351,7 @@ class QgisODK:
     def exportXForm(self, fileName = None, submission_url = None):
         workDir = QgsProject.instance().readPath("./")
         if not fileName:
-            fileName = QFileDialog().getSaveFileName(None, self.tr("Save XForm"), workDir, "*.xml")
+            fileName,ext = QFileDialog().getSaveFileName(None, self.tr("Save XForm"), workDir, "*.xml")
             exportingToGDrive = None
         elif self.settingsDlg.getCurrentService().hasValue('data collection table ID'):
             exportingToGDrive = True
@@ -381,12 +380,13 @@ class QgisODK:
     def exportXlsForm(self, fileName = None, submission_url = None):
         workDir = QgsProject.instance().readPath("./")
         if not fileName:
-            fileName = QFileDialog().getSaveFileName(None, self.tr("Save XlsForm"), workDir, "*.xls")
+            fileName, ext = QFileDialog().getSaveFileName(None, self.tr("Save XlsForm"), workDir, "*.xls")
         if QFileInfo(fileName).suffix() != "xls":
             fileName += ".xls"
+        print('fileName',fileName, ext)
         tableDef = self.dlg.treeView.renderToTable()
-        workbook = xlsxwriter.Workbook(fileName)
-        for sheetName, sheetContent in tableDef.iteritems():
+        workbook = Workbook(fileName)
+        for sheetName, sheetContent in tableDef.items():
             worksheet = workbook.add_worksheet(sheetName)
             for row, rowContent in enumerate(sheetContent):
                 for col, cellContent in enumerate(rowContent):
@@ -404,9 +404,9 @@ class QgisODK:
         xForm_id = exportMethod(fileName=tmpXlsFileName)
         response = self.settingsDlg.sendForm(xForm_id,tmpXlsFileName)
         if not response.status_code in (200,201):
-            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("error saving form %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("error saving form %s, %s.") % (response.status_code,response.reason), level=Qgis.Critical, duration=6)
         else:
-            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("form successfully exported"), level=QgsMessageBar.INFO, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("form successfully exported"), level=Qgis.Info, duration=6)
         os.remove(tmpXlsFileName)
 
     
@@ -422,18 +422,18 @@ class QgisODK:
             pass
         self.dlg.layersComboBox.clear()
         self.dlg.layersComboBox.addItem("",None)
-        for layer in self.iface.legendInterface().layers():
+        for layername,layer in QgsProject.instance().mapLayers().items():
             if layer.type() == QgsMapLayer.VectorLayer:
                 self.dlg.layersComboBox.addItem(layer.name(),layer.id())
-        if self.iface.legendInterface().currentLayer():
-            current_idx = self.dlg.layersComboBox.findData(self.iface.legendInterface().currentLayer().id())
+        if self.iface.activeLayer():
+            current_idx = self.dlg.layersComboBox.findData(self.iface.activeLayer().id())
             if current_idx != -1:
                 self.dlg.layersComboBox.setCurrentIndex(current_idx)
         self.dlg.layersComboBox.currentIndexChanged.connect(self.VectorLayerComboChanged)
 
     def VectorLayerComboChanged(self,idx):
         if self.dlg.layersComboBox.itemData(idx):
-            layer = QgsMapLayerRegistry.instance().mapLayer(self.dlg.layersComboBox.itemData(idx))
+            layer = QgsProject.instance().mapLayer(self.dlg.layersComboBox.itemData(idx))
             self.ODKout(layer)
 
     #method to get xml definition of layer state
@@ -456,7 +456,7 @@ class QgisODK:
             with open(os.path.join(workDir,geoJsonFileName), "w") as geojson_file:
                 geojson_file.write(json.dumps(geojsonDict))
             layer = self.iface.addVectorLayer(os.path.join(workDir,geoJsonFileName), geoJsonFileName[:-8], "ogr")
-            QgsMapLayerRegistry.instance().addMapLayer(layer)
+            QgsProject.instance().addMapLayer(layer)
             currentLayerState = self.getDomDef(self.iface.legendInterface().currentLayer())
                 
             currentFormConfig = currentLayer.editFormConfig() #recover
@@ -468,5 +468,5 @@ class QgisODK:
         else:
             #msg = self.iface.messageBar().createMessage( u"QgisODK plugin error loading csv table %s, %s." % (response.status_code,response.reason))
             #self.iface.messageBar().pushWidget(msg,QgsMessageBar.WARNING, 6)
-            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("error loading csv table %s, %s.") % (response.status_code,response.reason), level=QgsMessageBar.CRITICAL, duration=6)
+            self.iface.messageBar().pushMessage(self.tr("QGISODK plugin"), self.tr("error loading csv table %s, %s.") % (response.status_code,response.reason), level=Qgis.Critical, duration=6)
 

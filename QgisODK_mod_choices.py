@@ -24,15 +24,14 @@
 import os
 import json
 
-from PyQt4 import QtGui
-from PyQt4.QtGui import QTableWidgetItem, QSizePolicy
-from PyQt4.QtCore import Qt, QSize, QSettings, QTranslator, qVersion, QCoreApplication
-from QgisODK_mod_dialog_choices import Ui_ChoicesDialog
+from PyQt5 import QtWidgets, uic
+from PyQt5.QtWidgets import QTableWidgetItem, QSizePolicy
+from PyQt5.QtCore import Qt, QSize, QSettings, QTranslator, qVersion, QCoreApplication
 
+Ui_ChoicesDialog, _ = uic.loadUiType(os.path.join(os.path.dirname(__file__), 'QgisODK_mod_dialog_choices.ui'))
 
-class QgisODKChoices(QtGui.QDialog, Ui_ChoicesDialog):
-
-    def __init__(self,choicesJson, valueType, parent = None):
+class QgisODKChoices(QtWidgets.QDialog, Ui_ChoicesDialog):
+    def __init__(self, choicesJson, valueType, parent=None):
         """Constructor."""
         super(QgisODKChoices, self).__init__(parent)
         # Set up the user interface from Designer.
@@ -45,45 +44,46 @@ class QgisODKChoices(QtGui.QDialog, Ui_ChoicesDialog):
         choicesDict = json.loads(choicesJson)
         self.choicesTable.setColumnCount(2)
         self.choicesTable.setRowCount(len(choicesDict))
-        self.choicesTable.verticalHeader().setVisible(False);
+        self.choicesTable.verticalHeader().setVisible(False)
         self.choicesTable.setHorizontalHeaderItem(0, QTableWidgetItem("Values"))
         self.choicesTable.setHorizontalHeaderItem(1, QTableWidgetItem("Labels"))
         self.choicesTable.setColumnWidth(0, 127)
         self.choicesTable.setColumnWidth(1, 127)
-        for i,choice in enumerate(choicesDict):
+        for i, choice in enumerate(choicesDict):
             choiceValueWidget = QTableWidgetItem(valueType)
             choiceLabelWidget = QTableWidgetItem()
-            choiceValueWidget.setData(Qt.EditRole,choice)
-            self.choicesTable.setItem(i,0,choiceValueWidget)
-            choiceLabelWidget.setData(Qt.EditRole,choicesDict[choice])
-            self.choicesTable.setItem(i,1,choiceLabelWidget)
+            choiceValueWidget.setData(Qt.EditRole, choice)
+            self.choicesTable.setItem(i, 0, choiceValueWidget)
+            choiceLabelWidget.setData(Qt.EditRole, choicesDict[choice])
+            self.choicesTable.setItem(i, 1, choiceLabelWidget)
         self.choicesTable.sortItems(1)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
-        
+
         self.rowAddButton.clicked.connect(self.rowAddAction)
         self.rowRemoveButton.clicked.connect(self.rowRemoveAction)
-        
+
     def rowAddAction(self):
         if self.choicesTable.selectedItems():
             self.choicesTable.insertRow(self.choicesTable.selectedItems()[0].row())
         else:
             self.choicesTable.setRowCount(self.choicesTable.rowCount() + 1)
-        
+
     def rowRemoveAction(self):
         if self.choicesTable.selectedItems():
             self.choicesTable.removeRow(self.choicesTable.selectedItems()[0].row())
-    
+
     def getChoicesJson(self):
         choicesDict = {}
-        for i in range(0,self.choicesTable.rowCount()):
-            #print self.choicesTable.item(i,0).data(Qt.EditRole)
+        for i in range(0, self.choicesTable.rowCount()):
+            # print self.choicesTable.item(i,0).data(Qt.EditRole)
             try:
-                choicesDict[self.choicesTable.item(i,0).data(Qt.EditRole)] = self.choicesTable.item(i,1).data(Qt.EditRole)
+                choicesDict[self.choicesTable.item(i, 0).data(Qt.EditRole)] = self.choicesTable.item(i, 1).data(
+                    Qt.EditRole)
             except:
                 pass
         return json.dumps(choicesDict)
-    
+
     def exreject(self):
         self.result = self.choicesJson
         self.close()
@@ -91,11 +91,10 @@ class QgisODKChoices(QtGui.QDialog, Ui_ChoicesDialog):
 
     @staticmethod
     def getChoices(choicesJson, qType, title=""):
-        print "CHOICE"
         dialog = QgisODKChoices(choicesJson, qType)
         dialog.setWindowTitle(title)
         result = dialog.exec_()
-        if result == QtGui.QDialog.Accepted:
+        if result == QtWidgets.QDialog.Accepted:
             return dialog.getChoicesJson()
         else:
             return choicesJson

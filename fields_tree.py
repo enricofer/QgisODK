@@ -21,17 +21,18 @@
  ***************************************************************************/
 """
 
-from PyQt4.QtCore import Qt, QVariant, QSettings, QTranslator, qVersion, QCoreApplication
-from PyQt4.QtGui import QTableWidget, QTableWidgetItem, QLineEdit, QComboBox, QCheckBox, QAbstractItemView
-from PyQt4.QtGui import QTreeView, QStandardItem, QStandardItemModel, QItemSelectionModel, QItemDelegate
-from PyQt4.QtGui import QPen, QBrush, QColor, QMessageBox, QIcon
+from PyQt5.QtCore import Qt, QVariant, QSettings, QTranslator, qVersion, QCoreApplication, QItemSelectionModel
+from PyQt5.QtWidgets import QTableWidget, QTableWidgetItem, QLineEdit, QComboBox, QCheckBox, QAbstractItemView
+from PyQt5.QtWidgets import QTreeView, QItemDelegate, QMessageBox
+from PyQt5.QtGui import QPen, QBrush, QColor, QIcon, QStandardItemModel, QStandardItem
 
-from qgis.core import QGis, QgsProject
+from qgis.core import QgsWkbTypes, QgsProject
 
 from QgisODK_mod_choices import QgisODKChoices
 
 import json
 import unicodedata
+import unidecode
 import re
 import os
 
@@ -59,7 +60,7 @@ def QVariantToODKtype(q_type):
         raise AttributeError("Can't cast QVariant to ODKType: " + q_type)
 
 def cleanXMLtag(text):
-    allowedChars = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM-"
+    allowedChars = "1234567890qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"#-
     for i in range(0, len(text)):
         if not text[0].isalpha():
             text = text[1:]
@@ -69,27 +70,35 @@ def cleanXMLtag(text):
             cleanText += char
     return cleanText or 'odk-field'
 
-def slugify (s):
+def ex_slugify (s):
+    print("slugify")
+    print(s, type(s))
     if type(s) is unicode:
         slug = unicodedata.normalize('NFKD', s)
     elif type(s) is str:
         slug = s
     else:
         raise AttributeError("Can't slugify string")
+    print(slug, type(slug))
     slug = slug.encode('ascii', 'ignore').lower()
+    print(slug, type(slug))
     slug = re.sub(r'[^a-z0-9]+', '-', slug).strip('-')
     slug=re.sub(r'--+',r'-',slug)
     return slug
+
+def slugify (s):
+    text = unidecode.unidecode(s).lower()
+    return re.sub(r'\W+', '', text)
 
 class ODK_fields(QTreeView):
 
     def __init__(self, parent):
         super(ODK_fields, self).__init__(parent = parent)
-        self.setDragEnabled(True)
-        self.setDragDropMode(QAbstractItemView.DragDrop) #QAbstractItemView.InternalMove
-        self.setDefaultDropAction(Qt.MoveAction)
+        #self.setDragEnabled(True)
+        #self.setDragDropMode(QAbstractItemView.DragDrop) #QAbstractItemView.InternalMove
+        #self.setDefaultDropAction(Qt.MoveAction)
         #self.setAlternatingRowColors(True)
-        self.showDropIndicator()
+        #self.showDropIndicator()
         self.setIndentation(15)
         self.setRootIsDecorated(True)
 
@@ -158,18 +167,18 @@ class ODK_fields(QTreeView):
         self.targetLayer = {
             'name': layer.name(),
             'id': layer.id(),
-            'fields':[field.name() for field in layer.pendingFields()],
+            'fields':[field.name() for field in layer.fields()],
             'provider': layer.dataProvider().name(),
             'source': layer.source(),
             'geometryType': layer.geometryType(),
             'project': QgsProject.instance().fileInfo().absoluteFilePath()
         }
         
-        if layer.geometryType() == QGis.Point:
+        if layer.geometryType() == QgsWkbTypes.PointGeometry:
             self.geometry = 'geopoint'
-        elif layer.geometryType() == QGis.Line:
+        elif layer.geometryType() == QgsWkbTypes.LineGeometry:
             self.geometry = 'geotrace'
-        elif layer.geometryType() == QGis.Polygon:
+        elif layer.geometryType() == QgsWkbTypes.PolygonGeometry:
             self.geometry = 'geoshape'
         else :
             self.geometry = None
@@ -437,6 +446,7 @@ class ODK_fields(QTreeView):
             if count == 0:
                 fieldDefFromModel['fieldName'] = itemIndex.data(Qt.DisplayRole)
                 if service == "google_drive":
+                    pass
                     fieldDefFromModel['fieldName'] = fieldDefFromModel['fieldName'].replace('_','').replace('-','')
             else:
                 fieldInd = model.index(0,count,itemIndex)
@@ -494,7 +504,9 @@ class ODK_fields(QTreeView):
                  surveyRow[6] = 'yes'
             if fieldDefFromModel['fieldChoices'] != {} and fieldDefFromModel['fieldType'] in ['select one',
                                                                                               'select multiple']:
-                surveyRow[0] = surveyRow[0] + ' ' + slugify(fieldDefFromModel['fieldName'])
+                print ('fieldName',fieldDefFromModel['fieldName'],surveyRow)
+                print('fieldName', fieldDefFromModel['fieldName'], surveyRow)
+                #surveyRow[0] = surveyRow[0] + ' ' + slugify(fieldDefFromModel['fieldName'])
                 choicesDict = json.loads(fieldDefFromModel['fieldChoices'])
                 for name, label in choicesDict.iteritems():
                     self.tableDef['choices'].append([slugify(fieldDefFromModel['fieldName']),name,label])
